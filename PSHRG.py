@@ -283,11 +283,7 @@ def parse(rules, nx_g):
         lhs_size = 0
         if lhs != 'S':
             lhs_size = len(lhs.split(','))
-
-        r = graph_parser.grammar.Rule(lhs=graph_parser.grammar.Nonterminal(str(lhs_size)),
-                                      rhs=str(next_gl),
-                                      erhs=str(prev_gl),
-                                      weight=prob)
+        r = graph_parser.grammar.Rule(graph_parser.grammar.Nonterminal(str(lhs_size)), next_gl, prob, prev_gl)
         r.id = _id
         g.append(r)
 
