@@ -97,7 +97,8 @@ class Graphlet(Graph):
         for node in self.dfs():
             adjacency.setdefault(node, set())
             for edge in node.outedges:
-                treewidth.make_clique(adjacency, [node] + edge.tails)
+                if edge.label is not 'F': #dont do fake nodes
+                    treewidth.make_clique(adjacency, [node] + edge.tails)
 
         # Connect root and external nodes
         exts = list(self.exts) + [self.root]

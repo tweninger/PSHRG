@@ -2,7 +2,7 @@ import collections, itertools
 from graph import *
 from grammar import *
 
-verbose = 1
+verbose = 4
 
 
 def mark_tree(node, mark):
@@ -355,6 +355,7 @@ def parse(g, starts, h):
     for edge in h.dfs_edges():
         if not isinstance(edge.label, Nonterminal):
             edgelabels.add(edge.label)
+        edgelabels.add('F') #add the fake label
 
     # Preprocess grammar
     g_filtered = []
@@ -372,6 +373,19 @@ def parse(g, starts, h):
 
         # Form tree decomposition
         rule.rhs_tree = rule.rhs.tree_decomposition()
+        #TW - I dont know what I'm doing here
+        #def remove_fake_edges(node):
+        #    good_hedges = []
+        #    for h in node.hedges:
+        #        if h.label != 'F':
+        #            good_hedges.append( h )
+        #        else:
+        #            print 'removed', h.label
+        #    node.hedges = good_hedges
+        #    for n in node.outedges:
+        #        remove_fake_edges(n.tails[0])
+        #remove_fake_edges(rule.rhs_tree.root)
+
         if verbose >= 3:
             print "Tree decomposition:", rule.rhs_tree
 
