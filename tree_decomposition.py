@@ -264,7 +264,7 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
 
         nodes = set()
         rhs_term_dict = []
-        for c in sorted(nx.edges(rhs_s)):
+        for c in nx.edges(rhs_s):
             rhs_term_dict.append((",".join(str(x) for x in (list(c))), "T"))
             nodes.add(c[0])
             nodes.add(c[1])

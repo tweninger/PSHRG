@@ -2,7 +2,7 @@ import collections, itertools
 from graph import *
 from grammar import *
 
-verbose = 10
+verbose = 1
 
 
 def mark_tree(node, mark):
@@ -268,7 +268,7 @@ class Mapping(object):
 
             if redge.head.label != subrule.rhs.root.label:
                 raise UnificationFailure()
-            assert redge.head in self.nodemap
+            #assert redge.head in self.nodemap
         else:
             self.add(redge.head, submap.nodemap[subrule.rhs.root])
         for rtail, stail in itertools.izip(redge.tails, subrule.rhs.exts):
@@ -511,32 +511,38 @@ def product(args):
 
 
 def derive(derivation):
-    def visit(node):
+    def visit(node, indent=0):
         assert (len(node.outedges) == 1)
+
         edge = node.outedges[0]
 
         node = node.original
 
+        if isinstance(node, Item) and node.dot == len(node.tnode.hedges) and node.tnode is node.rule.rhs_tree.root:
+            print '  ' * indent + str(node)
+            indent += 1
+
         if isinstance(node, Goal):
-            return visit(edge.tails[0])
+            return visit(edge.tails[0], indent)
 
         if edge.label.startswith('Complete'):
             aitem, pitem = edge.tails
-            nonterminals = visit(aitem)
+            nonterminals = visit(aitem, indent)
             aitem = aitem.original
             x = aitem.tnode.hedges[aitem.dot].label
-            nonterminals[id(x)] = visit(pitem)
+            nonterminals[id(x)] = visit(pitem, indent)
         else:
             nonterminals = {}
             for child in edge.tails:
-                nonterminals.update(visit(child))
+                nonterminals.update(visit(child, indent))
 
         if isinstance(node, Item) and node.dot == len(node.tnode.hedges) and node.tnode is node.rule.rhs_tree.root:
             return subst(node.rule.erhs, nonterminals)
         else:
             return nonterminals
 
-    return visit(derivation.root)
+    x = visit(derivation.root)
+    return x
 
 if __name__ == "__main__":
     import sys
@@ -566,17 +572,20 @@ if __name__ == "__main__":
     s = Nonterminal(args.start)
 
     if verbose >= 1:
-        sys.stderr.write("Start symbol: {0}\n".format(s))
-        sys.stderr.write("Input grammar:\n")
+        print "Start symbol: {0}\n".format(s)
+        print "Input grammar:"
         for r in g:
-            sys.stderr.write(str(r) + "\n")
+            print str(r)
+
+    print
+    print
 
     for line in open('input5'):
         h = amr_to_graph(line)
 
         if verbose >= 1:
-            sys.stderr.write("Input graph:\n")
-            sys.stderr.write(h.to_amr() + "\n")
+            print "Input graph:"
+            print h.to_amr()
 
         forest = parse(g, [s], h)
 

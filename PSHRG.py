@@ -292,7 +292,7 @@ def parse(rules, nx_g):
 
     print h
 
-    graph_parser.parser.parse(g, [graph_parser.grammar.Nonterminal('0')], h)
+    return graph_parser.parser.parse(g, [graph_parser.grammar.Nonterminal('0')], h)
 
 def binarize(tree):
     (node, children) = tree
@@ -326,7 +326,7 @@ def main():
 
     #add_edge_events[1] = [(1, 2), (1, 5), (2, 3), (2, 4),(3, 4), (3, 5), (4, 6), (5, 6)]
     #add_edge_events[1] = [(2, 1)]
-    add_edge_events[1] = [(1, 2), (2, 1), (2, 3)]
+    add_edge_events[1] = [(1, 2), (2, 1), (2, 3), (3, 2)]
     #add_edge_events[2] = [(2, 3), (3, 2), (1, 3), (3, 1)]
 
     # del_edge_events[1] = [(1, 3)]
@@ -386,7 +386,7 @@ def main():
         g.add_rule(pcfg.Rule(id, lhs, (rhs_prev, rhs_next), prob, True))
     print '> prod rules added to Grammar g'  #
     forest = parse(rules, g_next )
-    print forest
+    print graph_parser.parser.derive(forest.viterbi())
     exit()
 
     g.set_max_size(15, 1)
