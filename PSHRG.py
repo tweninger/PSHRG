@@ -11,6 +11,7 @@ import graph_sampler as gs
 import probabilistic_cfg as pcfg
 import probabilistic_gen as pg
 import tree_decomposition as td
+import graph_parser.amr
 
 # prod_rules = {}
 DEBUG = True
@@ -217,64 +218,11 @@ def union_graph(g_prev, g_next):
     return g_union
 
 
-def str_to_graphlet(rhs, nt_map={}):
-    nodelist = {}
-    exts = []
-    for e in rhs:
-        nods = e.split(':')[0].split(',')
-        typ = e.split(':')[1]
-        for n in sorted(nods):
-            if n not in nodelist:
-                nodelist[n] = graph_parser.graph.Node(label='u', outedges=[])
-                nodelist[n].var = str(n)
-
-        if typ == 'N':
-            n = sorted(nods)[0]
-            tails = [nodelist[x] for x in (set(nods) - set(n))]
-            nt = None
-            if e not in nt_map:
-                nt = graph_parser.grammar.Nonterminal(str(len(nods)))
-                nt_map[e] = nt
-            else:
-                nt = nt_map[e]
-
-            ge = graph_parser.graph.Edge(label=nt, tails=sorted(tails))
-            nodelist[n].outedges.append(ge)
-            exts.extend([nodelist[x] for x in (set(nods))])
-        else:
-            #terminal x -> y
-            if len(nods) == 2:
-                ge = graph_parser.graph.Edge(label='E', tails=[nodelist[nods[1]]])
-                nodelist[nods[0]].outedges.append(ge)
-
-    max = -1
-    max_node = None
-    for n in nodelist:
-        s = len(nodelist[n].outedges)
-        if s > max:
-            max = s
-            max_node = nodelist[n]
-    root = max_node
-    g = graph_parser.grammar.Graphlet(root)#, exts=list(set(exts)))
-    scc = set()
-    for n in g.dfs():
-        scc.add(n.var)
-    others_str = set(nodelist.keys()).difference(scc)
-    others = []
-    for n in others_str:
-        others.append( nodelist[n] )
-    if len(others) > 0:
-        for n in others:
-            ge = graph_parser.graph.Edge(label='F', tails=[n])
-            root.outedges.append(ge)
-
-    g = graph_parser.grammar.Graphlet(root)  # , exts=list(set(exts)))
-    return g, nt_map
 
 
 def parse(rules, nx_g):
 
-    h = graph_parser.graph.nx_to_graph(nx_g)
+    h = graph_parser.amr.format_amr(nx_g)
 
     g = []
     for (_id, lhs, rhs_prev, rhs_next, prob) in rules:

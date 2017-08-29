@@ -1,0 +1,8 @@
+Truth ||| (n :S[1]) ||| (S :S[1]) ||| 1.0
+S ||| (n :instance believe-01 :arg0 (x / n :EM[1]) :arg1 (n :SM[2] x)) ||| (S (NP :EM[1]) believes (S :SM[2])) ||| 1.0
+SM ||| (n :instance want-01 :arg0 (x / n :EF[1]) :arg1 (n :INFFM[2] x n*1)) ||| (S (NP :EF[1]) wants (INF :INFFM[2])) ||| 1.0
+INFFM ||| (n :instance see-01 :arg0 n*1 :arg1 n*2) ||| (INF to see him) ||| 1.0
+INFFM ||| (n :instance see-01 :arg0 n*2 :arg1 n*1) ||| (INF him to see her) ||| 1.0
+INFFM ||| (n :instance see-01 :arg0 n*2 :arg1 n*1) ||| (INF to be seen by him) ||| 2.0
+EM ||| (n :instance boy) ||| (NP the boy) ||| 1.0
+EF ||| (n :instance girl) ||| (NP the girl) ||| 1.0

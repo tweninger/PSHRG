@@ -1,0 +1,3 @@
+Truth ||| (instance :id want :agent (x / instance :Entity[1]) :theme (instance :Truth[2] x)) ||| (S (NP :Entity[1]) (VP (VBP want) (SBAR :Truth[2]))) ||| 0.5
+Truth ||| (instance*1 :id see :agent instance*2) ||| (SBAR*1 (TO to) (S (VP (VB see)))) ||| 0.5
+Entity ||| (instance*1 :id i) ||| (NP*1 (PRP I)) ||| 1

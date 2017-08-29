@@ -4,6 +4,7 @@ import networkx as nx
 from num_to_word import num_to_word
 
 
+
 def make_clique(graph, nodes):
     for v1 in nodes:
         for v2 in nodes:
