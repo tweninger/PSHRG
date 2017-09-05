@@ -1,7 +1,7 @@
 # This should be the same as grammar1 and input1.
 
 import networkx
-import parser
+import graph_parser
 import hypergraphs
 import amr
 import grammar
@@ -96,5 +96,5 @@ if __name__ == "__main__":
     g.add_edge("i2", "see", label="id")
     g.add_edge("i2", "x", label="agent")
 
-    forest = parser.parse(frules, [grammar.Nonterminal("Truth")], g)
-    print(amr.format_amr(grammar.derive(parser.viterbi(forest), erules)))
+    forest = graph_parser.parse(frules, [grammar.Nonterminal("Truth")], g)
+    print(amr.format_amr(grammar.derive(graph_parser.viterbi(forest), erules)))

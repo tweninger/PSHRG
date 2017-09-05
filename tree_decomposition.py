@@ -2,6 +2,7 @@ from collections import defaultdict
 import itertools
 import networkx as nx
 from num_to_word import num_to_word
+import grammar
 
 
 
@@ -229,75 +230,66 @@ def get_production_rule(g, child, itx):
     return rhs
 
 
-def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
-    letter = 0
+def make_rule(rhs, ext, s):
+    import hypergraphs
     d = {}
-
-    for x in lhs:
-        d[x] = num_to_word(letter)
-        letter += 1
-
-    lhs_s = set()
-    for x in lhs:
-        lhs_s.add(d[x])
-    if len(lhs_s) == 0:
-        lhs_s.add("S")
-
-    lhs_str = "(" + ",".join(str(x) for x in sorted(lhs_s)) + ")"
-    rhs_str = []
-
-    for rhs in [rhs_prev, rhs_next]:
-        i = 0
-        rhs_s = nx.DiGraph()
-        for n in rhs.nodes():
-            if n in d:
-                n = d[n]
-            else:
-                d[n] = i
-                n = i
-                i += 1
-            rhs_s.add_node(n)
-
-        for e in rhs.edges():
-            u = d[e[0]]
-            v = d[e[1]]
-            rhs_s.add_edge(u, v)
-
-        nodes = set()
-        rhs_term_dict = []
-        for c in nx.edges(rhs_s):
-            rhs_term_dict.append((",".join(str(x) for x in (list(c))), "T"))
-            nodes.add(c[0])
-            nodes.add(c[1])
-
-        for c in s:
-            rhs_term_dict.append((",".join(str(d[x]) for x in sorted(c)), "N"))
-            for x in c:
-                nodes.add(d[x])
-
-        for singletons in set(nx.nodes(rhs_s)).difference(nodes):
-            rhs_term_dict.append((str(singletons), "T"))
-
-        rhs_str.append("")
-        for n in rhs_term_dict:
-            rhs_str[-1] += "(" + n[0] + ":" + n[1] + ")"
-
-        if rhs_str[-1] == "":
-            rhs_str[-1] = "()"
-
-
-    rhs_str = (rhs_str[0], rhs_str[1])
-
-    if lhs_str not in shrg_rules:
-        rhs_dict = dict()
-        rhs_dict[rhs_str] = 1
-        shrg_rules[lhs_str] = rhs_dict
-    else:
-        rhs_dict = shrg_rules[lhs_str]
-        if rhs_str in rhs_dict:
-            shrg_rules[lhs_str][rhs_str] = rhs_dict[rhs_str] + 1
+    ext_id = 0
+    i = 0
+    rhs_s = nx.DiGraph()
+    for n in rhs.nodes():
+        if n in d:
+            n = d[n]
         else:
-            rhs_dict[rhs_str] = 1
-            ##sorting above makes rhs match perfectly if a match exists
+            d[n] = i
+            i += 1
+        if n in ext:
+            rhs_s.add_node('_' + str(d[n]), label='u', external = ext_id)
+            ext_id += 1
+        else:
+            rhs_s.add_node('_' + str(d[n]), label='u')
 
-        # print lhs_str, "->", rhs_str # prints Prod Rules
+    attrs = {'label': 'e'}
+    for e in rhs.edges():
+        u = '_' + str(d[e[0]])
+        v = '_' + str(d[e[1]])
+        rhs_s.add_edge(u, v, **attrs)
+
+    for c in s:
+
+        #rhs_s.add_node(nonterm, label=grammar.Nonterminal(len(c)))
+
+        attrs = {'label': 'nt:' + str(len(c))}
+        #if len(c) == 2:
+        #    u = '_' + str(d[c[0]])
+        #    v = '_' + str(d[c[1]])
+        #    rhs_s.add_edge(u, v, **attrs)
+        #else:
+        nodes = ['_' + str(d[x]) for x in sorted(c)]
+        hypergraphs.add_hyperedge(rhs_s, nodes, **attrs)
+
+    links = []
+    for e in hypergraphs.edges(rhs_s):
+        attrs = hypergraphs.edge(rhs_s, e)
+        if attrs['label'] is not None:
+            lab = attrs['label'].split(':')
+            if lab[0] == 'nt':
+                attrs['label'] = grammar.Nonterminal(lab[1])
+                link = len(links)
+                attrs['link'] = link
+                links.append((link, e))
+
+
+    return rhs_s
+
+def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
+
+    lhs_he = grammar.Nonterminal(str(len(lhs)))
+
+    rule_prev = grammar.Rule(lhs_he, make_rule(rhs_prev, lhs, s))
+    rule_next = grammar.Rule(lhs_he, make_rule(rhs_next, lhs, s))
+
+    if lhs_he not in shrg_rules:
+        shrg_rules[lhs_he] = [(rule_prev, rule_next)]
+    else:
+        shrg_rules[lhs_he] += [(rule_prev, rule_next)]
+    #todo make more compact by combining like rules into probabilities

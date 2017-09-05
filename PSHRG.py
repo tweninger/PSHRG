@@ -4,14 +4,14 @@ import re
 
 import networkx as nx
 
-import graph_parser.grammar
-import graph_parser.graph
-import graph_parser.parser
+import grammar
+import amr
+import hypergraphs
+import graph_parser as p
 import graph_sampler as gs
 import probabilistic_cfg as pcfg
 import probabilistic_gen as pg
 import tree_decomposition as td
-import graph_parser.amr
 
 # prod_rules = {}
 DEBUG = True
@@ -135,10 +135,6 @@ def tree_decomposition(g):
 
     graph_checks(g)
 
-    if DEBUG: print
-    if DEBUG: print "--------------------"
-    if DEBUG: print "-Tree Decomposition-"
-    if DEBUG: print "--------------------"
     tree_decomp_l = []
     if g.number_of_nodes() >= 500:
         for g_prime in gs.rwr_sample(g, 2, 300):
@@ -220,28 +216,6 @@ def union_graph(g_prev, g_next):
 
 
 
-def parse(rules, nx_g):
-
-    h = graph_parser.amr.format_amr(nx_g)
-
-    g = []
-    for (_id, lhs, rhs_prev, rhs_next, prob) in rules:
-        prev_gl, nt_map = str_to_graphlet(rhs_prev)
-        next_gl, _ = str_to_graphlet(rhs_next, nt_map)
-        lhs_size = 0
-        if lhs != 'S':
-            lhs_size = len(lhs.split(','))
-        r = graph_parser.grammar.Rule(graph_parser.grammar.Nonterminal(str(lhs_size)), next_gl, prob, prev_gl)
-        r.id = _id
-        g.append(r)
-
-    for x in g:
-        print x
-
-    print h
-
-    return graph_parser.parser.parse(g, [graph_parser.grammar.Nonterminal('0')], h)
-
 def binarize(tree):
     (node, children) = tree
     children = [binarize(child) for child in children]
@@ -256,11 +230,17 @@ def binarize(tree):
             binarized = (node, [binarized, child])
         return binarized
 
-def prune(tree):
+def prune(tree, parent):
     (node, children) = tree
-    children = [prune(child) for child in children]
-    if len(children) > 0 and len(children[0][0].difference(node)) == 0:
-        return (node, [])
+    children = [prune(child, node) for child in children]
+    #prune nones
+    newchildren = []
+    for child in children:
+        if child[0] is not None:
+            newchildren.append( child )
+    children = newchildren
+    if len(children) == 0 and len(node.difference(parent)) == 0:
+        return (None, [])
     else:
         return (node, children)
 
@@ -272,10 +252,14 @@ def main():
     add_edge_events = {}
     del_edge_events = {}
 
-    #add_edge_events[1] = [(1, 2), (1, 5), (2, 3), (2, 4),(3, 4), (3, 5), (4, 6), (5, 6)]
-    #add_edge_events[1] = [(2, 1)]
-    add_edge_events[1] = [(1, 2), (2, 1), (2, 3), (3,2), (4,3), (3,4), (4,5), (5,4)]
-    #add_edge_events[2] = [(2, 3), (3, 2), (1, 3), (3, 1)]
+    #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
+
+    #add_edge_events[1] = [(1,2), (2,3), (3,1)]
+    #add_edge_events[1] = [(1, 2), (2, 1), (2, 3), (3, 2), (3, 4), (5, 3), (4, 3), (1, 5), (1, 6), (2, 6), (6, 3)]
+    add_edge_events[1] = [(1, 2), (2, 3), (3, 4),  ]
+    add_edge_events[2] = [(4, 5), (5, 1), (6, 2)]
+    #add_edge_events[3] = [(1, 5), (1, 6), (2, 6), (6, 3)]
+    #add_edge_events[4] = [(5, 1), ]
 
     # del_edge_events[1] = [(1, 3)]
 
@@ -287,54 +271,39 @@ def main():
     for t in events:
         if t in add_edge_events:
             for u, v in add_edge_events[t]:
-                g_next.add_edge(u, v)
+                g_next.add_edge(u, v, label='e')
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
                 g_next.remove_edge(u, v)
+        nx.set_node_attributes(g_next, 'label', 'u')
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
-        tree_decomp = tree_decomp_l[0]
-        #tree_decomp = binarize(tree_decomp_l[0])
-        #tree_decomp = prune(tree_decomp)
+        #tree_decomp = tree_decomp_l[0]
+        tree_decomp = binarize(tree_decomp_l[0])
+        tree_decomp = prune(tree_decomp, frozenset())
         td.new_visit(tree_decomp, g_prev, g_next, shrg_rules)
         g_prev = g_next
+
+    print(tree_decomp)
 
     if DEBUG: print
     if DEBUG: print "--------------------"
     if DEBUG: print "- Production Rules -"
     if DEBUG: print "--------------------"
 
-    for k in shrg_rules.iterkeys():
-        if DEBUG: print k
-        s = 0
-        for d in shrg_rules[k]:
-            s += shrg_rules[k][d]
-        for d in shrg_rules[k]:
-            shrg_rules[k][d] = float(shrg_rules[k][d]) / float(s)  # normailization step to create probs not counts.
-            if DEBUG: print '\t -> ', d, shrg_rules[k][d]
+    prev_rules = []
+    next_rules = []
+    for lhs_set in shrg_rules.values():
+        for rule_tuple in lhs_set:
+            prev_rules.append(rule_tuple[0])
 
-    # pp.pprint(prod_rules)
+    for lhs_set in shrg_rules.values():
+        for rule_tuple in lhs_set:
+            next_rules.append(rule_tuple[1])
 
-    rules = []
-    id = 0
-    for k, v in shrg_rules.iteritems():
-        sid = 0
-        for x in shrg_rules[k]:
-            rhs_prev = re.findall("[^()]+", x[0])
-            rhs_next = re.findall("[^()]+", x[1])
-            rules.append(
-                ("r%d.%d" % (id, sid), "%s" % re.findall("[^()]+", k)[0], rhs_prev, rhs_next, shrg_rules[k][x]))
-            if DEBUG: print (
-            "r%d.%d" % (id, sid), "%s" % re.findall("[^()]+", k)[0], rhs_prev, rhs_next, shrg_rules[k][x])
-            sid += 1
-        id += 1
+    forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
 
-    g = pcfg.Grammar('S')
-    for (id, lhs, rhs_prev, rhs_next, prob) in rules:
-        g.add_rule(pcfg.Rule(id, lhs, (rhs_prev, rhs_next), prob, True))
-    print '> prod rules added to Grammar g'  #
-    forest = parse(rules, g_next )
-    print graph_parser.parser.derive(forest.viterbi())
+    print(p.derive(p.viterbi(forest), next_rules))
     exit()
 
     g.set_max_size(15, 1)

@@ -81,12 +81,28 @@ class Subgraph(object):
                 raise UnificationFailure("subgraphs must be disjoint")
 
         for node, edges in iteritems(other.boundary):
-            if node in self.boundary and self.boundary[node].intersection(edges):
-                raise UnificationFailure("subgraphs must be disjoint")
+            res = []
+            if node in self.boundary:
+                for e in self.boundary[node]:
+                    for f in edges:
+                        if e == f and type(e) == type(f):
+                            res.append(e)
+                if res:
+                    raise UnificationFailure("subgraphs must be disjoint")
             if node not in self.boundary:
                 self.boundary[node] = set()
             self.boundary[node].update(edges)
         self.marker = self.marker or other.marker
+
+    @staticmethod
+    def multigraph_intersection(self, e1, e2):
+        res = []
+        for e in e1:
+            for f in e2:
+                if e == f and type(e) == type(f):
+                    res.append(e)
+        return res
+
 
     def forget_node(self, node):
         """Forget about a node. But this is only possible if all the node's edges have been added.
@@ -249,6 +265,8 @@ class Mapping(object):
             if subrule.rhs.degree(snode) == 0:
                 if self.r.node[rnode]['label'] != subrule.rhs.node[snode]['label']:
                     raise UnificationFailure("node labels do not match")
+                if rnode not in self.nodemap:
+                    print('e')
                 assert rnode in self.nodemap
             else:
                 self.add(rnode, submap.nodemap[snode])
@@ -378,7 +396,8 @@ def parse(g, starts, h):
 
     # Arbitrarily choose a marker node in each weakly connected component
     if verbose >= 3:
-        sys.stderr.write("Input graph: {}\n".format(amr.format_amr(h, show_all=True)))
+        for e in h.edges():
+            print(e)
     if not networkx.is_weakly_connected(h):
         raise NotImplementedError("parsing of disconnected graphs not implemented")
     for comp in networkx.weakly_connected_components(h):
@@ -396,7 +415,16 @@ def parse(g, starts, h):
 
     for rule in g:
         if verbose >= 3:
-            print("Rule {}: {} -> {}, (may be disconnected)".format(str(rule.id), rule.lhs, format_rhs(rule.rhs, show_all=True)))
+            print('Rule', str(rule.id) + ':')
+            print('\t' + str(rule.lhs) + '->')
+            print('\tNodes:')
+            for n in rule.rhs.nodes(data=True):
+                print('\t\t' + str(n))
+            print('\tEdges:')
+            for e in rule.rhs.edges():
+                print('\t\t' + str(e))
+            print()
+            #print("Rule {}: {} -> {}, (may be disconnected)".format(str(rule.id), rule.lhs, format_rhs(rule.rhs, show_all=True)))
 
         # Form tree decomposition.
         # Assume (at most) binary branching
@@ -409,7 +437,7 @@ def parse(g, starts, h):
             t.node[v]['edges'] = list(t.node[v]['edges'])
         rule.rhs_tree = t
         if verbose >= 3:
-            print("  tree decomposition:", amr.format_amr(t))
+            print("  tree decomposition:", t.edges())
             for v in t.nodes():
                 print("    bag {}".format(v))
                 print("      nodes:", " ".join(map(str, t.node[v]['nodes'])))

@@ -192,3 +192,4 @@ if __name__ == "__main__":
         print(s.rstrip())
         g = parse_amr(s)
         print(format_amr(g))
+

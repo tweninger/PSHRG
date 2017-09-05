@@ -63,18 +63,18 @@ def edges_iter(g, nbunch=None, tentacle=0):
         if t in [True, 0] or callable(t) and t(0):
             for (u,v) in g.edges(u):
                 if not isinstance(v, Hyperedge) and (u,v) not in seen:
-                    seen.add((u,v))
+                    seen.add(((u,v),'t'))
                     yield (u,v)
         if (isinstance(g, networkx.DiGraph) and
             t in [True, 1] or callable(t) and t(1)):
             for v in g.predecessors(u):
                 if not isinstance(v, Hyperedge) and (v,u) not in seen:
-                    seen.add((v,u))
+                    seen.add(((v,u),'t'))
                     yield (v,u)
         for e in g.neighbors(u):
-            if isinstance(e, Hyperedge) and e not in seen:
+            if isinstance(e, Hyperedge) and (e, 'n') not in seen:
                 if t == True or isinstance(t, int) and e[t] == u:
-                    seen.add(e)
+                    seen.add((e, 'n'))
                     yield e
                 elif callable(t):
                     for i,v in enumerate(e):
@@ -88,7 +88,7 @@ def edges(g, nbunch=None, tentacle=0):
 
 def clique_graph(g):
     """Every hyperedge becomes a clique."""
-    cg = networkx.Graph()
+    cg = networkx.MultiGraph()
     for v in nodes(g):
         cg.add_node(v, **g.node[v])
     for e in edges(g):
