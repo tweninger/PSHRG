@@ -245,6 +245,11 @@ def prune(tree, parent):
         return (node, children)
 
 
+def normalize_shrg(prev_rules, next_rules):
+    #TODO - Satyaki get to work!
+    """Condense rule set so that isomorphic rules are combined and counted"""
+    return (prev_rules, next_rules)
+
 
 def main():
     # Example From PAMI Paper
@@ -257,9 +262,9 @@ def main():
     #add_edge_events[1] = [(1,2), (2,3), (3,1)]
     #add_edge_events[1] = [(1, 2), (2, 1), (2, 3), (3, 2), (3, 4), (5, 3), (4, 3), (1, 5), (1, 6), (2, 6), (6, 3)]
     add_edge_events[1] = [(1, 2), (2, 3), (3, 4),  ]
-    add_edge_events[2] = [(4, 5), (5, 1), (6, 2)]
-    #add_edge_events[3] = [(1, 5), (1, 6), (2, 6), (6, 3)]
-    #add_edge_events[4] = [(5, 1), ]
+    add_edge_events[2] = [(4, 5), (5, 6), (6, 7)]
+    add_edge_events[3] = [(1, 5), (1, 6), (2, 6), (6, 3)]
+    add_edge_events[4] = [(5, 1), ]
 
     # del_edge_events[1] = [(1, 3)]
 
@@ -301,23 +306,14 @@ def main():
         for rule_tuple in lhs_set:
             next_rules.append(rule_tuple[1])
 
+
+    (prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
+    assert len(prev_rules) == len(next_rules)
+
     forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
 
     print(p.derive(p.viterbi(forest), next_rules))
-    exit()
-
-    g.set_max_size(15, 1)
-    print '> max-size set.'
-
-    rids = g.sample(15, 1)
-    print rids
-
-    new_graph = pg.gen(rids, g, 0)
-
-    print "nodes: ", new_graph.number_of_nodes()
-    print "edges: ", new_graph.number_of_edges()
-    print
-    print
+    print(p.get_rule_list(p.viterbi(forest)))
 
 
 if __name__ == "__main__":

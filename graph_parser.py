@@ -12,7 +12,7 @@ import networkx
 from grammar import *
 import bigfloat
 
-verbose = 3
+verbose = 1
 
 
 class UnificationFailure(Exception):

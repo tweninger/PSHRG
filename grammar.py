@@ -235,7 +235,7 @@ def derive(deriv, rules):
         dnode: current derivation node
         hedge: nonterminal edge that current rule replaces
         """
-
+        print dnode.rule.id
         dchildren = {}
         for dchild in deriv.successors(dnode):
             dchildren[deriv[dnode][dchild]['link']] = dchild
@@ -261,6 +261,31 @@ def derive(deriv, rules):
     visit(deriv.graph['root'], ())
     return h
 
+
+
+def get_rule_list(deriv):
+    """
+    deriv: a tree (arborescence) where
+      - 'root' attribute is the root node
+      - each node's 'rule' attribute is a rule id
+      - each edge's 'link' attribute indicates where the replacement occurs
+    rules: a list of Rules.
+    """
+
+    rules = [deriv.graph['root']]
+    def visit(dnode):
+        """
+        dnode: current derivation node
+        hedge: nonterminal edge that current rule replaces
+        """
+
+        dchildren = {}
+        for dchild in deriv.successors(dnode):
+            rules.append(dchild)
+            dchildren[deriv[dnode][dchild]['link']] = dchild
+
+    visit(deriv.graph['root'])
+    return rules
 
 if __name__ == "__main__":
     import sys
