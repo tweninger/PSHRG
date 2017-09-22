@@ -12,7 +12,7 @@ import networkx
 from grammar import *
 import bigfloat
 
-verbose = 1
+verbose = 3
 
 
 class UnificationFailure(Exception):
@@ -80,13 +80,19 @@ class Subgraph(object):
             if all(not self.h.node[node]['marker'] for node in set(self.boundary) & set(other.boundary)):
                 raise UnificationFailure("subgraphs must be disjoint")
 
+#        for node, edges in iteritems(other.boundary):
+            #if node in self.boundary and self.boundary[node].intersection(edges):
+                #raise UnificationFailure("subgraphs must be disjoint")
+
         for node, edges in iteritems(other.boundary):
             res = []
-            if node in self.boundary:
+            if node in self.boundary: #
                 for e in self.boundary[node]:
                     for f in edges:
                         if e == f and type(e) == type(f):
                             res.append(e)
+                        if e == f and type(e) != type(f):
+                            print('alarm')
                 if res:
                     raise UnificationFailure("subgraphs must be disjoint")
             if node not in self.boundary:
@@ -254,7 +260,7 @@ class Mapping(object):
         external = external_nodes(subrule.rhs)
         if hypergraphs.edge(self.r, redge)['label'] != subrule.lhs:
             raise UnificationFailure()
-        if len(redge) != len(external):
+        if len(redge.h) != len(external):
             raise UnificationFailure()
 
         for rnode, snode in zip(redge, external):
@@ -267,7 +273,7 @@ class Mapping(object):
                     raise UnificationFailure("node labels do not match")
                 if rnode not in self.nodemap:
                     print('e')
-                assert rnode in self.nodemap
+                #assert rnode in self.nodemap
             else:
                 self.add(rnode, submap.nodemap[snode])
 
@@ -352,9 +358,10 @@ def viterbi(chart):
         w_max = None
         e_max = None
         for e in hypergraphs.edges(chart, u):
-            if e[0] != u: continue
+            if e.h[0] != u: continue
             w = bigfloat.bigfloat(1.)
-            for v in e[1:]:
+            for v in e.h[1:]:
+                print (v)
                 w *= visit(v)
             if w_max is None or w > w_max:
                 w_max = w
@@ -378,7 +385,7 @@ def viterbi(chart):
             visit(pitem, pitem)
             deriv.add_edge(ritem, pitem, link=link)
         else:
-            for item in e[1:]:
+            for item in e.h[1:]:
                 visit(ritem, item)
 
     [_, item] = ant[Goal()]
@@ -414,7 +421,7 @@ def parse(g, starts, h):
     # Could filter out rules that use labels not found in h
 
     for rule in g:
-        if verbose >= 3:
+        if verbose >= 2:
             print('Rule', str(rule.id) + ':')
             print('\t' + str(rule.lhs) + '->')
             print('\tNodes:')
@@ -436,7 +443,7 @@ def parse(g, starts, h):
             # We need the edges in each bag to be ordered
             t.node[v]['edges'] = list(t.node[v]['edges'])
         rule.rhs_tree = t
-        if verbose >= 3:
+        if verbose >= 2:
             print("  tree decomposition:", t.edges())
             for v in t.nodes():
                 print("    bag {}".format(v))
@@ -461,6 +468,8 @@ def parse(g, starts, h):
         rule = trigger.rule
         if verbose >= 3:
             print("trigger:", trigger)
+            if str(trigger) == '[1,1,1,{_1->4,_0->2}]' or str(trigger) == '[1,1,0,{}]': #add: [3,2,2,{_2->4,_1->2,_0->0}]
+                print ('f')
 
         if trigger.dot < len(trigger.edges):
             # There are still edges left to process. Choose the next one, redge.

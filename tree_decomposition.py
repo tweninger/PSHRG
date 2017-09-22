@@ -200,6 +200,7 @@ def new_visit(datree, g_prev, g_next, shrg_rules, indent=0, parent=None):
     rhs_prev = get_production_rule(g_prev, node, itx)
     rhs_next = get_production_rule(g_next, node, itx)
     s = [list(node & child) for child, _ in subtrees]
+
     add_to_shrg_rules(shrg_rules, itx, rhs_prev, rhs_next, s)
 
     # print " "*indent, " ".join(str(x) for x in node) # prints Tree
@@ -235,7 +236,7 @@ def make_rule(rhs, ext, s):
     d = {}
     ext_id = 0
     i = 0
-    rhs_s = nx.DiGraph()
+    rhs_s = nx.MultiDiGraph()
     for n in rhs.nodes():
         if n in d:
             n = d[n]
@@ -252,34 +253,42 @@ def make_rule(rhs, ext, s):
     for e in rhs.edges():
         u = '_' + str(d[e[0]])
         v = '_' + str(d[e[1]])
-        rhs_s.add_edge(u, v, **attrs)
+        if rhs_s.has_edge(u,v):
+            print 'has'
+        rhs_s.add_edge(u, v, label='e')
 
+    i = 0
     for c in s:
 
         #rhs_s.add_node(nonterm, label=grammar.Nonterminal(len(c)))
 
-        attrs = {'label': 'nt:' + str(len(c))}
+        nt = str(len(c))
         #if len(c) == 2:
         #    u = '_' + str(d[c[0]])
         #    v = '_' + str(d[c[1]])
         #    rhs_s.add_edge(u, v, **attrs)
         #else:
         nodes = ['_' + str(d[x]) for x in sorted(c)]
-        hypergraphs.add_hyperedge(rhs_s, nodes, **attrs)
-
-    links = []
-    for e in hypergraphs.edges(rhs_s):
-        attrs = hypergraphs.edge(rhs_s, e)
-        if attrs['label'] is not None:
-            lab = attrs['label'].split(':')
-            if lab[0] == 'nt':
-                attrs['label'] = grammar.Nonterminal(lab[1])
-                link = len(links)
-                attrs['link'] = link
-                links.append((link, e))
-
+        hypergraphs.add_hyperedge(rhs_s, nodes, i, label=grammar.Nonterminal(nt), link=i)
+        #TODO 'link' attribute = i??
+        i+=1
 
     return rhs_s
+
+def edge_isomorph(x, y):
+    if 'label' in x or 'label' in y:
+        if 'label' not in x or 'label' not in y:
+            return False
+        if x['label'] != y['label']:
+            return False
+    return True
+
+def node_isomorph(x, y):
+    if x['label'] != y['label']: return False
+    if 'external' in x or 'external' in y:
+        if 'external' not in x or 'external' not in y:
+            return False
+    return True
 
 def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
 
@@ -288,8 +297,26 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
     rule_prev = grammar.Rule(lhs_he, make_rule(rhs_prev, lhs, s))
     rule_next = grammar.Rule(lhs_he, make_rule(rhs_next, lhs, s))
 
+    print lhs_he, '->', rule_prev.rhs.edges(), rule_next.rhs.edges()
+
     if lhs_he not in shrg_rules:
         shrg_rules[lhs_he] = [(rule_prev, rule_next)]
     else:
-        shrg_rules[lhs_he] += [(rule_prev, rule_next)]
+        #prev side
+        iso = False
+        #rhs_list = shrg_rules[lhs_he]
+        #for i in range(0,len(rhs_list)):
+        #    rhs = rhs_list[i]
+        #    if nx.is_isomorphic(rhs[0].rhs, rule_prev.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
+        #        print("prev isomorph")
+        #        if nx.is_isomorphic(rhs[1].rhs, rule_next.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
+        #            print("next isomorph")
+        #            #del rhs_list[i]
+        #            iso = True
+        #            rhs[0].weight += 1
+        #            rhs[1].weight += 1
+        #            #shrg_rules[lhs_he] += [(rhs[0], rhs[1])]
+
+        if not iso:
+            shrg_rules[lhs_he] += [(rule_prev, rule_next)]
     #todo make more compact by combining like rules into probabilities

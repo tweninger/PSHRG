@@ -58,6 +58,12 @@ def binarize(tree):
         return binarized
 
 
+def print_tree_decomp(tree, indent=""):
+    (node, children) = tree
+    print indent, node
+    [print_tree_decomp(child, indent = indent + "  ") for child in children]
+
+
 def grow(rule_list, grammar, diam=0):
     D = list()
     newD = diam
@@ -236,11 +242,18 @@ def prune(tree, parent):
     #prune nones
     newchildren = []
     for child in children:
-        if child[0] is not None:
-            newchildren.append( child )
+        if type(child) is list:
+            for c in child:
+                if c[0] is not None:
+                    newchildren.append(c)
+        else:
+            if child[0] is not None:
+                newchildren.append( child )
     children = newchildren
     if len(children) == 0 and len(node.difference(parent)) == 0:
         return (None, [])
+    elif (len(node.difference(parent)) == 0):
+        return children
     else:
         return (node, children)
 
@@ -251,20 +264,78 @@ def normalize_shrg(prev_rules, next_rules):
     return (prev_rules, next_rules)
 
 
+
+def powerlaw_cluster_graph(n, m, p, seed=None):
+    from networkx import random_graphs as rg
+    if m < 1 or n < m:
+        raise nx.NetworkXError(\
+              "NetworkXError must have m>1 and m<n, m=%d,n=%d"%(m,n))
+
+    if p > 1 or p < 0:
+        raise nx.NetworkXError(\
+              "NetworkXError p must be in [0,1], p=%f"%(p))
+    if seed is not None:
+        random.seed(seed)
+
+    G=rg.empty_graph(m, create_using=nx.DiGraph()) # add m initial nodes (m0 in barabasi-speak)
+    G.name="Powerlaw-Cluster Graph"
+    repeated_nodes=G.nodes()  # list of existing nodes to sample from
+                           # with nodes repeated once for each adjacent edge
+    source=m               # next node is m
+    t = 0
+    while source<n:        # Now add the other n-1 nodes
+        possible_targets = rg._random_subset(repeated_nodes,m)
+        # do one preferential attachment for new node
+        target=possible_targets.pop()
+        G.add_edge(source,target, t=t)
+        repeated_nodes.append(target) # add one node to list for each new link
+        count=1
+        while count<m:  # add m-1 more new links
+            if random.random()<p: # clustering step: add triangle
+                neighborhood=[nbr for nbr in G.neighbors(target) \
+                               if not G.has_edge(source,nbr) \
+                               and not nbr==source]
+                if neighborhood: # if there is a neighbor without a link
+                    nbr=random.choice(neighborhood)
+                    G.add_edge(source,nbr, t=t) # add triangle
+                    repeated_nodes.append(nbr)
+                    count=count+1
+                    continue # go to top of while loop
+            # else do preferential attachment step if above fails
+            target=possible_targets.pop()
+            G.add_edge(source,target,t=t)
+            repeated_nodes.append(target)
+            count = count + 1
+        t += 1
+
+        repeated_nodes.extend([source]*m)  # add source node to list m times
+        source += 1
+    return G
+
 def main():
     # Example From PAMI Paper
     # Graph is undirected
     add_edge_events = {}
     del_edge_events = {}
+    g = powerlaw_cluster_graph(5,2,.2)
+    #print g.edges(data=True)
+    #print sorted(g.edges(data=True), key=lambda x: x[2]['t'])
+    #print g.size()
 
+    #for e in g.edges_iter(data=True):
+    #    if e[2]['t'] not in add_edge_events:
+    #        add_edge_events[e[2]['t']] = [(e[0], e[1])]
+    #    else:
+    #        add_edge_events[e[2]['t']].append( (e[0], e[1]) )
+
+    #print add_edge_events
+
+    #exit()
     #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
 
-    #add_edge_events[1] = [(1,2), (2,3), (3,1)]
-    #add_edge_events[1] = [(1, 2), (2, 1), (2, 3), (3, 2), (3, 4), (5, 3), (4, 3), (1, 5), (1, 6), (2, 6), (6, 3)]
-    add_edge_events[1] = [(1, 2), (2, 3), (3, 4),  ]
-    add_edge_events[2] = [(4, 5), (5, 6), (6, 7)]
-    add_edge_events[3] = [(1, 5), (1, 6), (2, 6), (6, 3)]
-    add_edge_events[4] = [(5, 1), ]
+    add_edge_events[0] = [(2, 0), (2, 1), ]
+    add_edge_events[1] = [(3, 0), (3, 2), ]
+    add_edge_events[2] = [(4, 0), (4, 1), ]
 
     # del_edge_events[1] = [(1, 3)]
 
@@ -277,19 +348,28 @@ def main():
         if t in add_edge_events:
             for u, v in add_edge_events[t]:
                 g_next.add_edge(u, v, label='e')
+                print u, v, t
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
                 g_next.remove_edge(u, v)
         nx.set_node_attributes(g_next, 'label', 'u')
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
-        #tree_decomp = tree_decomp_l[0]
-        tree_decomp = binarize(tree_decomp_l[0])
-        tree_decomp = prune(tree_decomp, frozenset())
-        td.new_visit(tree_decomp, g_prev, g_next, shrg_rules)
-        g_prev = g_next
 
-    print(tree_decomp)
+        print_tree_decomp(tree_decomp_l[0])
+
+        if t < len(events) - 1:
+            continue
+
+        tree_decomp = prune(tree_decomp_l[0], frozenset())
+        tree_decomp = binarize(tree_decomp)
+
+        print_tree_decomp(tree_decomp)
+
+        td.new_visit(tree_decomp, g_prev, g_next, shrg_rules)
+        g_prev = g_next.copy()
+
+
 
     if DEBUG: print
     if DEBUG: print "--------------------"
@@ -310,7 +390,11 @@ def main():
     (prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
+    print 'start parsing'
+
     forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
+
+    print 'start deriving'
 
     print(p.derive(p.viterbi(forest), next_rules))
     print(p.get_rule_list(p.viterbi(forest)))

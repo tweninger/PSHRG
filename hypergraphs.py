@@ -1,17 +1,40 @@
 import networkx
 
-class Hyperedge(tuple):
-    pass
+class Hyperedge():
+    def __init__(self, tup, n):
+        self.h = tup
+        self.n = n
 
-def add_hyperedge(g, nodes, **attrs):
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return '<'+str(self.h)+', '+ str(self.n) + '>'
+
+    def __iter__(self):
+        for x in self.h:
+            yield x
+
+def add_hyperedge(g, nodes, n=-1, **attrs):
     """Adds a Hyperedge as a node of g and tentacles as edges from the
     Hyperedge to the endpoint nodes.
 
     Note that regardless of the type of g, the order of tentacles matters,
     and multiple hyperedges are not allowed.
     """
-    e = Hyperedge(nodes)
-    g.add_node(e, **attrs)
+
+    #see if edges already exists
+    if n == -1:
+        i=0
+        while True:
+            e = Hyperedge(nodes, i)
+            if not g.has_node(e):
+                break
+            i+=1
+        n = i
+
+    e = Hyperedge(nodes,n)
+    g.add_node(e, attrs)
     for v in nodes:
         g.add_edge(v, e)
     return e
@@ -35,12 +58,16 @@ def edge(g, e):
     """Returns a dict of attributes of hyperedge e."""
     if isinstance(e, Hyperedge):
         if isinstance(g, networkx.MultiGraph):
-            return {0: g.node[e]}
+            return g.node[e]
         else:
             return g.node[e]
     else:
+        #TODO only one terminal edge type in this implementation
         (u,v) = e
-        return g.edge[u][v]
+        if isinstance(g, networkx.MultiGraph):
+            return g.edge[u][v][0]
+        else:
+            return g.edge[u][v]
 
 def edges_iter(g, nbunch=None, tentacle=0):
     """Returns a set of all edges and hyperedges incident to nodes in nbunch.
@@ -58,30 +85,19 @@ def edges_iter(g, nbunch=None, tentacle=0):
     """
 
     t = tentacle
-    seen = set()
     for u in g.nbunch_iter(nbunch):
         if t in [True, 0] or callable(t) and t(0):
-            for (u,v) in g.edges(u):
-                if not isinstance(v, Hyperedge) and (u,v) not in seen:
-                    seen.add(((u,v),'t'))
-                    yield (u,v)
+            for e in g.edges(u):
+                if not isinstance(e[1], Hyperedge) :
+                    yield e
+                else:
+                    if e[1].h[t] == u:
+                        yield e[1]
         if (isinstance(g, networkx.DiGraph) and
             t in [True, 1] or callable(t) and t(1)):
             for v in g.predecessors(u):
-                if not isinstance(v, Hyperedge) and (v,u) not in seen:
-                    seen.add(((v,u),'t'))
+                if not isinstance(v, Hyperedge):
                     yield (v,u)
-        for e in g.neighbors(u):
-            if isinstance(e, Hyperedge) and (e, 'n') not in seen:
-                if t == True or isinstance(t, int) and e[t] == u:
-                    seen.add((e, 'n'))
-                    yield e
-                elif callable(t):
-                    for i,v in enumerate(e):
-                        if f(i) and i == v:
-                            seen.add(e)
-                            yield e
-                            break
 
 def edges(g, nbunch=None, tentacle=0):
     return list(edges_iter(g, nbunch, tentacle))
@@ -92,8 +108,12 @@ def clique_graph(g):
     for v in nodes(g):
         cg.add_node(v, **g.node[v])
     for e in edges(g):
-        for u in e:
-            for v in e:
+        if isinstance(e, Hyperedge):
+            eh = e.h
+        else:
+            eh = e
+        for u in eh:
+            for v in eh:
                 if v != u:
                     cg.add_edge(u, v, **edge(g, e))
     return cg
