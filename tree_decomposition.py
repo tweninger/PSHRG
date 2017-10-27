@@ -304,19 +304,19 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
     else:
         #prev side
         iso = False
-        #rhs_list = shrg_rules[lhs_he]
-        #for i in range(0,len(rhs_list)):
-        #    rhs = rhs_list[i]
-        #    if nx.is_isomorphic(rhs[0].rhs, rule_prev.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
-        #        print("prev isomorph")
-        #        if nx.is_isomorphic(rhs[1].rhs, rule_next.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
-        #            print("next isomorph")
-        #            #del rhs_list[i]
-        #            iso = True
-        #            rhs[0].weight += 1
-        #            rhs[1].weight += 1
-        #            #shrg_rules[lhs_he] += [(rhs[0], rhs[1])]
+        rhs_list = shrg_rules[lhs_he]
+        for i in range(0,len(rhs_list)):
+            rhs = rhs_list[i]
+            if nx.is_isomorphic(rhs[0].rhs, rule_prev.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
+                print("prev isomorph")
+                if nx.is_isomorphic(rhs[1].rhs, rule_next.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
+                    print("next isomorph")
+                    #del rhs_list[i]
+                    iso = True
+                    rhs[0].weight += 1
+                    rhs[1].weight += 1
+                    #shrg_rules[lhs_he] += [(rhs[0], rhs[1])]
 
-        if not iso:
-            shrg_rules[lhs_he] += [(rule_prev, rule_next)]
+        #if not iso:
+        shrg_rules[lhs_he] += [(rule_prev, rule_next)]
     #todo make more compact by combining like rules into probabilities

@@ -77,7 +77,7 @@ def decompose_graphlet(g):
     t = treewidth.quickbb(hypergraphs.clique_graph(g1))
 
     # The root bag is the one containing the external nodes
-    for tv in t.nodes():
+    for tv in reversed(t.nodes()):
         if t.node[tv]['nodes'].issuperset(external):
             tr = tv
             break
@@ -87,6 +87,7 @@ def decompose_graphlet(g):
     t = to_arborescence(t, tr)
     t = binarize(t)
     t = add_edges(g, t)
+    #t = prune(t)
     return t
 
 
@@ -142,6 +143,7 @@ def binarize(t):
 
     t1.graph['root'] = visit(t.graph['root'])
     return t1
+
 
 
 def add_edges(g, t):

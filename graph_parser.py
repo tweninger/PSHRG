@@ -12,7 +12,7 @@ import networkx
 from grammar import *
 import bigfloat
 
-verbose = 3
+verbose = 1
 
 
 class UnificationFailure(Exception):
@@ -273,6 +273,7 @@ class Mapping(object):
                     raise UnificationFailure("node labels do not match")
                 if rnode not in self.nodemap:
                     print('e')
+                    #self.add(rnode, submap.nodemap[snode])
                 #assert rnode in self.nodemap
             else:
                 self.add(rnode, submap.nodemap[snode])
@@ -361,7 +362,7 @@ def viterbi(chart):
             if e.h[0] != u: continue
             w = bigfloat.bigfloat(1.)
             for v in e.h[1:]:
-                print (v)
+                #print (v)
                 w *= visit(v)
             if w_max is None or w > w_max:
                 w_max = w
@@ -421,7 +422,7 @@ def parse(g, starts, h):
     # Could filter out rules that use labels not found in h
 
     for rule in g:
-        if verbose >= 2:
+        if verbose >= 3:
             print('Rule', str(rule.id) + ':')
             print('\t' + str(rule.lhs) + '->')
             print('\tNodes:')
@@ -461,15 +462,20 @@ def parse(g, starts, h):
                 item = Item(rule, tnode, 0, Mapping(rule.rhs, h))
                 chart.add(item, label="Leaf")
 
+#   try this code below under different orderings of chart.agenda
+
     while len(chart.agenda) > 0:
         trigger = chart.get()
         if trigger == Goal(): continue
         tnode = trigger.tnode
         rule = trigger.rule
-        if verbose >= 3:
+        if verbose >= 2:
             print("trigger:", trigger)
-            if str(trigger) == '[1,1,1,{_1->4,_0->2}]' or str(trigger) == '[1,1,0,{}]': #add: [3,2,2,{_2->4,_1->2,_0->0}]
-                print ('f')
+            #if str(trigger).startswith('[1,0,1,{_0->') and not str(trigger).startswith('[1,0,1,{_0->7'):
+#                print ('f')
+#                continue;
+            if str(trigger).startswith( '[11,3,1' ):
+                print ('g')
 
         if trigger.dot < len(trigger.edges):
             # There are still edges left to process. Choose the next one, redge.
@@ -481,7 +487,9 @@ def parse(g, starts, h):
                 lhs = rule.rhs_signature(redge)
                 for rewrite in chart.lhs_index[lhs]:
                     if verbose >= 3:
-                        print("  rewrite:", rewrite)
+                        if str(rewrite) == "[5,2,2,{_2->5,_1->1,_0->4}]":
+                            print ('g')
+                        print("  rewrite:", rewrite) #trigger: [3,2,2,{_2->4,_1->2,_0->1}]   rewrite: [5,2,2,{_2->5,_1->4,_0->1}]
                     newmap = trigger.map.copy()
                     try:
                         newmap.add_rewrite(redge, rewrite.rule, rewrite.map)
@@ -550,7 +558,7 @@ def parse(g, starts, h):
                 oedge = rewritee.edges[rewritee.dot]
                 newmap = rewritee.map.copy()
                 try:
-                    newmap.add_rewrite(oedge, trigger.rule, trigger.map)
+                    newmap.add_rewrite(oedge, trigger.rule, trigger.map) #trigger: [5,2,2,{_2->5,_1->1,_0->4}] rewritee: [3,2,2,{_2->3,_1->4,_0->0}]
                 except UnificationFailure:
                     pass
                 else:
@@ -561,6 +569,8 @@ def parse(g, starts, h):
             # and check if we're done
             if trigger.map.hspan.full() and len(external_nodes(rule.rhs)) == 0 and rule.lhs in starts:
                 chart.add(Goal(), ants=(trigger,), weight=rule.weight, label="Goal")
+                if verbose >= 2:
+                    print("GOAL: ", trigger)
 
     return chart.chart
 

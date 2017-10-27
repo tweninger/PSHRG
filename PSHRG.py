@@ -43,19 +43,6 @@ def matcher(lhs, N):
             return m
 
 
-def binarize(tree):
-    (node, children) = tree
-    children = [binarize(child) for child in children]
-    if len(children) <= 2:
-        return (node, children)
-    else:
-        # Just make copies of node.
-        # This is the simplest way to do it, but it might be better to trim unnecessary members from each copy.
-        # The order that the children is visited is arbitrary.
-        binarized = (node, children[:2])
-        for child in children[2:]:
-            binarized = (node, [binarized, child])
-        return binarized
 
 
 def print_tree_decomp(tree, indent=""):
@@ -153,7 +140,7 @@ def tree_decomposition(g):
         _t = td.quickbb(g)
         root = list(_t)[0]
         _t = td.make_rooted(_t, root)
-        _t = binarize(_t)
+        #_t = binarize(_t)
         tree_decomp_l.append(_t)
 
     return tree_decomp_l
@@ -231,10 +218,13 @@ def binarize(tree):
         # Just make copies of node.
         # This is the simplest way to do it, but it might be better to trim unnecessary members from each copy.
         # The order that the children is visited is arbitrary.
+        full_node = node.copy()
+        node = node.intersection(children[0][0] | children[1][0])
         binarized = (node, children[:2])
         for child in children[2:]:
+            node = full_node.intersection(binarized[0] | child[0])
             binarized = (node, [binarized, child])
-        return binarized
+        return (full_node, binarized[1])
 
 def prune(tree, parent):
     (node, children) = tree
@@ -258,10 +248,6 @@ def prune(tree, parent):
         return (node, children)
 
 
-def normalize_shrg(prev_rules, next_rules):
-    #TODO - Satyaki get to work!
-    """Condense rule set so that isomorphic rules are combined and counted"""
-    return (prev_rules, next_rules)
 
 
 
@@ -317,25 +303,33 @@ def main():
     # Graph is undirected
     add_edge_events = {}
     del_edge_events = {}
-    g = powerlaw_cluster_graph(5,2,.2)
+    g = powerlaw_cluster_graph(10,2,.2)
+
     #print g.edges(data=True)
     #print sorted(g.edges(data=True), key=lambda x: x[2]['t'])
     #print g.size()
 
-    #for e in g.edges_iter(data=True):
-    #    if e[2]['t'] not in add_edge_events:
-    #        add_edge_events[e[2]['t']] = [(e[0], e[1])]
-    #    else:
-    #        add_edge_events[e[2]['t']].append( (e[0], e[1]) )
+    for e in g.edges_iter(data=True):
+        if e[2]['t'] not in add_edge_events:
+            add_edge_events[e[2]['t']] = [(e[0], e[1])]
+        else:
+            add_edge_events[e[2]['t']].append( (e[0], e[1]) )
 
     #print add_edge_events
 
     #exit()
     #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
 
-    add_edge_events[0] = [(2, 0), (2, 1), ]
-    add_edge_events[1] = [(3, 0), (3, 2), ]
-    add_edge_events[2] = [(4, 0), (4, 1), ]
+    #add_edge_events[0] = [(2, 0), (2, 1), ]
+    #add_edge_events[1] = [(3, 0), (3, 2), ]
+    #add_edge_events[2] = [(4, 0), (4, 1), ]
+    #add_edge_events[3] = [(5, 0), (5, 2), ]
+    #add_edge_events[4] = [(6, 0), (6, 2), ]
+    #add_edge_events[5] = [(7, 1), (7, 3), ]
+    #add_edge_events[6] = [(8, 1), (8, 7), ]
+    #add_edge_events[7] = [(9, 1), (9, 2), ]
+    #add_edge_events[8] = [(10, 1), (10, 4), ]
+    #add_edge_events[9] = [(11, 1), (11, 2), ]
 
     # del_edge_events[1] = [(1, 3)]
 
@@ -358,8 +352,8 @@ def main():
 
         print_tree_decomp(tree_decomp_l[0])
 
-        if t < len(events) - 1:
-            continue
+ #       if t < len(events) - 1:
+ #           continue
 
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)
@@ -387,7 +381,7 @@ def main():
             next_rules.append(rule_tuple[1])
 
 
-    (prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
+    #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
     print 'start parsing'
