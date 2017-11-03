@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import random
 import re
@@ -12,7 +14,9 @@ import graph_sampler as gs
 import probabilistic_cfg as pcfg
 import probabilistic_gen as pg
 import tree_decomposition as td
-
+from time import time 
+import sys 
+import pickle 
 # prod_rules = {}
 DEBUG = True
 
@@ -22,11 +26,11 @@ def graph_checks(G):
     num_nodes = G.number_of_nodes()
 
     if not nx.is_connected(G):
-        if DEBUG: print "Graph must be connected";
+        # if DEBUG: # print"Graph must be connected";
         os._exit(1)
 
     if G.number_of_selfloops() > 0:
-        if DEBUG: print "Graph must be not contain self-loops";
+        # if DEBUG: # print"Graph must be not contain self-loops";
         os._exit(1)
 
 
@@ -47,7 +51,7 @@ def matcher(lhs, N):
 
 def print_tree_decomp(tree, indent=""):
     (node, children) = tree
-    print indent, node
+    # printindent, node
     [print_tree_decomp(child, indent = indent + "  ") for child in children]
 
 
@@ -72,7 +76,7 @@ def grow(rule_list, grammar, diam=0):
 
         new_idx = {}
         n_rhs = rule.rhs
-        if 0: print lhs_str, "->", n_rhs
+        # if 0: # printlhs_str, "->", n_rhs
         for x in n_rhs:
             new_he = []
             he = x.split(":")[0]
@@ -102,7 +106,7 @@ def grow(rule_list, grammar, diam=0):
                 N.append(sorted(new_he))
             elif term_symb == "T":
                 H.append(new_he)  # new (h)yper(e)dge
-                # print n_rhs, new_he
+                # # printn_rhs, new_he
         match = sorted(match)
         N.remove(match)
 
@@ -148,19 +152,19 @@ def tree_decomposition(g):
 
 def probabilistic_shrg():
     prod_rules = {}
-    if DEBUG: print
-    if DEBUG: print "--------------------"
-    if DEBUG: print "- Production Rules -"
-    if DEBUG: print "--------------------"
+    # if DEBUG: print
+    # if DEBUG: # print"--------------------"
+    # if DEBUG: # print"- Production Rules -"
+    # if DEBUG: # print"--------------------"
 
     for k in prod_rules.iterkeys():
-        if DEBUG: print k
+        # if DEBUG: # printk
         s = 0
         for d in prod_rules[k]:
             s += prod_rules[k][d]
         for d in prod_rules[k]:
             prod_rules[k][d] = float(prod_rules[k][d]) / float(s)  # normailization step to create probs not counts.
-            if DEBUG: print '\t -> ', d, prod_rules[k][d]
+            # if DEBUG: # print'\t -> ', d, prod_rules[k][d]
 
     # pp.pprint(prod_rules)
 
@@ -171,7 +175,7 @@ def probabilistic_shrg():
         for x in prod_rules[k]:
             rhs = re.findall("[^()]+", x)
             rules.append(("r%d.%d" % (id, sid), "%s" % re.findall("[^()]+", k)[0], rhs, prod_rules[k][x]))
-            if DEBUG: print ("r%d.%d" % (id, sid), "%s" % re.findall("[^()]+", k)[0], rhs, prod_rules[k][x])
+            # if DEBUG: # print("r%d.%d" % (id, sid), "%s" % re.findall("[^()]+", k)[0], rhs, prod_rules[k][x])
             sid += 1
         id += 1
 
@@ -301,21 +305,23 @@ def powerlaw_cluster_graph(n, m, p, seed=None):
 def main():
     # Example From PAMI Paper
     # Graph is undirected
-    add_edge_events = {}
-    del_edge_events = {}
-    g = powerlaw_cluster_graph(10,2,.2)
 
-    #print g.edges(data=True)
-    #print sorted(g.edges(data=True), key=lambda x: x[2]['t'])
-    #print g.size()
+    ###################################
+    # add_edge_events = {}
+    # del_edge_events = {}
 
-    for e in g.edges_iter(data=True):
-        if e[2]['t'] not in add_edge_events:
-            add_edge_events[e[2]['t']] = [(e[0], e[1])]
-        else:
-            add_edge_events[e[2]['t']].append( (e[0], e[1]) )
+    # g = powerlaw_cluster_graph(10,2,.2)
 
-    #print add_edge_events
+    # ## printg.edges(data=True)
+    # ## printsorted(g.edges(data=True), key=lambda x: x[2]['t'])
+    # ## printg.size()
+
+    # for e in g.edges_iter(data=True):
+    #     if e[2]['t'] not in add_edge_events:
+    #         add_edge_events[e[2]['t']] = [(e[0], e[1])]
+    #     else:
+    #         add_edge_events[e[2]['t']].append( (e[0], e[1]) )
+    ##########################################################
 
     #exit()
     #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
@@ -333,16 +339,31 @@ def main():
 
     # del_edge_events[1] = [(1, 3)]
 
+    ### Read pickled add and del_edge events ##########
+    start = time()
+    add_edge_filename = './test/add_edge_pickle.pkl'
+    with open(add_edge_filename, 'rb') as f:
+        add_edge_events = pickle.load(f)
+
+    del_edge_filename = './test/del_edge_pickle.pkl'
+    with open(del_edge_filename, 'rb') as f:
+        del_edge_events = pickle.load(f)
+    #############
+    print('Loading done!', file=sys.stderr)
+
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
 
     shrg_rules = {}
     for t in events:
+        decomp_time = time()
+        if t > 7:
+            break
         if t in add_edge_events:
             for u, v in add_edge_events[t]:
                 g_next.add_edge(u, v, label='e')
-                print u, v, t
+                # # printu, v, t
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
                 g_next.remove_edge(u, v)
@@ -350,7 +371,7 @@ def main():
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
 
-        print_tree_decomp(tree_decomp_l[0])
+        # print_tree_decomp(tree_decomp_l[0])
 
  #       if t < len(events) - 1:
  #           continue
@@ -358,17 +379,20 @@ def main():
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)
 
-        print_tree_decomp(tree_decomp)
+        # print_tree_decomp(tree_decomp)
+        # 
 
         td.new_visit(tree_decomp, g_prev, g_next, shrg_rules)
         g_prev = g_next.copy()
+        print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=sys.stderr)
 
 
 
-    if DEBUG: print
-    if DEBUG: print "--------------------"
-    if DEBUG: print "- Production Rules -"
-    if DEBUG: print "--------------------"
+    DEBUG = False
+    # if DEBUG: print
+    # if DEBUG: # print"--------------------"
+    # if DEBUG: # print"- Production Rules -"
+    # if DEBUG: # print"--------------------"
 
     prev_rules = []
     next_rules = []
@@ -380,19 +404,22 @@ def main():
         for rule_tuple in lhs_set:
             next_rules.append(rule_tuple[1])
 
-
     #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
-    print 'start parsing'
-
+    # print'start parsing'
+    print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
+    print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
+    # print'start deriving'
 
-    print 'start deriving'
-
-    print(p.derive(p.viterbi(forest), next_rules))
-    print(p.get_rule_list(p.viterbi(forest)))
-
+    # print(p.derive(p.viterbi(forest), next_rules))
+    print('Derive start, time elapsed:', time() - start, 'sec', file=sys.stderr)
+    p.derive(p.viterbi(forest), next_rules)
+    print('Derive end, time elapsed:', time() - start, 'sec', file=sys.stderr)
+    # print(p.get_rule_list(p.viterbi(forest)))
+    p.get_rule_list(p.viterbi(forest))
+    print('End in', time() - start, 'sec!!', file=sys.stderr)
 
 if __name__ == "__main__":
     main()
