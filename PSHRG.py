@@ -341,11 +341,19 @@ def main():
 
     ### Read pickled add and del_edge events ##########
     start = time()
-    add_edge_filename = './test/add_edge_pickle.pkl'
+    # filename = './test/pickles/enron/5'
+    # filename = './test/pickles/enron/10'
+    # filename = './test/pickles/enron/full'
+
+    # filename = './test/pickles/dutch/23'
+    # filename = './test/pickles/dutch/3'
+    filename = './test/pickles/dutch/full'
+    
+    add_edge_filename = filename + '_add_edge.pkl'
     with open(add_edge_filename, 'rb') as f:
         add_edge_events = pickle.load(f)
 
-    del_edge_filename = './test/del_edge_pickle.pkl'
+    del_edge_filename = filename + '_del_edge.pkl'
     with open(del_edge_filename, 'rb') as f:
         del_edge_events = pickle.load(f)
     #############
@@ -358,7 +366,7 @@ def main():
     shrg_rules = {}
     for t in events:
         decomp_time = time()
-        if t > 7:
+        if t > 7: # the 8th event is very very slow for email dataset!  
             break
         if t in add_edge_events:
             for u, v in add_edge_events[t]:
@@ -408,6 +416,12 @@ def main():
     assert len(prev_rules) == len(next_rules)
 
     # print'start parsing'
+
+    if not nx.is_weakly_connected(g_next):
+        g_next = max(nx.weakly_connected_component_subgraphs(g_next), key=len) # get the largest SCC
+        print('Working with the largest weakly connected component', file=sys.stderr)
+
+    # parse doesn't work since the graph is disconnected. 
     print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
