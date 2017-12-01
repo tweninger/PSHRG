@@ -244,10 +244,12 @@ def make_rule(rhs, ext, s):
             d[n] = i
             i += 1
         if n in ext:
-            rhs_s.add_node('_' + str(d[n]), label='u', external = ext_id)
+            nid = '_' + str(d[n])
+            rhs_s.add_node(nid, label='u', nid = nid, external = ext_id)
             ext_id += 1
         else:
-            rhs_s.add_node('_' + str(d[n]), label='u')
+            nid = '_' + str(d[n])
+            rhs_s.add_node(nid, label='u', nid = nid)
 
     attrs = {'label': 'e'}
     for e in rhs.edges():
@@ -284,6 +286,7 @@ def edge_isomorph(x, y):
     return True
 
 def node_isomorph(x, y):
+    if 'nid' in x and 'nid' in y and x['nid'] != y['nid']: return False
     if x['label'] != y['label']: return False
     if 'external' in x or 'external' in y:
         if 'external' not in x or 'external' not in y:
@@ -303,20 +306,17 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
         shrg_rules[lhs_he] = [(rule_prev, rule_next)]
     else:
         #prev side
-        iso = False
         rhs_list = shrg_rules[lhs_he]
+        match = None
         for i in range(0,len(rhs_list)):
             rhs = rhs_list[i]
             if nx.is_isomorphic(rhs[0].rhs, rule_prev.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
                 print("prev isomorph")
                 if nx.is_isomorphic(rhs[1].rhs, rule_next.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
                     print("next isomorph")
-                    #del rhs_list[i]
-                    iso = True
-                    rhs[0].weight += 1
-                    rhs[1].weight += 1
-                    #shrg_rules[lhs_he] += [(rhs[0], rhs[1])]
+                    match = rhs_list[i]
+                    match[0].weight += 1
+                    match[1].weight += 1
 
-        #if not iso:
-        shrg_rules[lhs_he] += [(rule_prev, rule_next)]
-    #todo make more compact by combining like rules into probabilities
+        if not match:
+            shrg_rules[lhs_he] += [(rule_prev, rule_next)]

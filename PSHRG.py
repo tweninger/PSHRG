@@ -307,8 +307,8 @@ def main():
     # Graph is undirected
 
     ###################################
-    # add_edge_events = {}
-    # del_edge_events = {}
+    add_edge_events = {}
+    del_edge_events = {}
 
     # g = powerlaw_cluster_graph(10,2,.2)
 
@@ -337,6 +337,12 @@ def main():
     #add_edge_events[8] = [(10, 1), (10, 4), ]
     #add_edge_events[9] = [(11, 1), (11, 2), ]
 
+
+    add_edge_events[0] = [(0, 1), (1, 2), ]
+    add_edge_events[1] = [(2, 3), (3, 4), ]
+    add_edge_events[2] = [(4, 5), (5, 6), ]
+    add_edge_events[3] = [(6, 7), (7, 8), ]
+
     # del_edge_events[1] = [(1, 3)]
 
     ### Read pickled add and del_edge events ##########
@@ -346,8 +352,8 @@ def main():
     # filename = './test/pickles/enron/full'
 
     # filename = './test/pickles/dutch/23'
-    # filename = './test/pickles/dutch/3'
-    filename = './test/pickles/dutch/full'
+    filename = './test/pickles/dutch/3'
+    #filename = './test/pickles/dutch/full'
     
     add_edge_filename = filename + '_add_edge.pkl'
     with open(add_edge_filename, 'rb') as f:
@@ -381,8 +387,9 @@ def main():
 
         # print_tree_decomp(tree_decomp_l[0])
 
- #       if t < len(events) - 1:
- #           continue
+        if t < len(events) - 3:
+            continue
+
 
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)
@@ -406,10 +413,12 @@ def main():
     next_rules = []
     for lhs_set in shrg_rules.values():
         for rule_tuple in lhs_set:
+            rule_tuple[0].weight /= float(len(lhs_set))
             prev_rules.append(rule_tuple[0])
 
     for lhs_set in shrg_rules.values():
         for rule_tuple in lhs_set:
+            rule_tuple[1].weight /= float(len(lhs_set))
             next_rules.append(rule_tuple[1])
 
     #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
@@ -418,18 +427,18 @@ def main():
     # print'start parsing'
 
     if not nx.is_weakly_connected(g_next):
-        g_next = max(nx.weakly_connected_component_subgraphs(g_next), key=len) # get the largest SCC
+        g_next = max(nx.weakly_connected_component_subgraphs(g_next), key=len) # get the largest WCC
         print('Working with the largest weakly connected component', file=sys.stderr)
 
     # parse doesn't work since the graph is disconnected. 
     print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
-    forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
+    forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     # print'start deriving'
 
     # print(p.derive(p.viterbi(forest), next_rules))
     print('Derive start, time elapsed:', time() - start, 'sec', file=sys.stderr)
-    p.derive(p.viterbi(forest), next_rules)
+    p.derive(p.viterbi(forest), prev_rules)
     print('Derive end, time elapsed:', time() - start, 'sec', file=sys.stderr)
     # print(p.get_rule_list(p.viterbi(forest)))
     p.get_rule_list(p.viterbi(forest))

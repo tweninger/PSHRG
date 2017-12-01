@@ -5,18 +5,53 @@
 
 from __future__ import print_function
 from six import iteritems
-from six.moves import zip
 import sys
 import collections, itertools
 import networkx
 from grammar import *
 import bigfloat
+import heapq
+from collections import deque
 
 verbose = 1
 
 
 class UnificationFailure(Exception):
     pass
+
+
+class Agenda(object):
+    def __init__(self):
+        self.agenda = deque()
+        self.set = set()
+
+    def __len__(self):
+        return len(self.agenda)
+
+    def trim(self, size=100):
+        while len(self.agenda) > size:
+            x = self.agenda.popleft()
+            self.set.remove(x)
+
+    def add(self, d, pri=1.):
+        if d not in self.set:
+            #heapq.heappush(self.agenda, (pri, d))
+            self.agenda.append(d)
+            self.set.add(d)
+        else:
+            print("not")
+
+    def get(self):
+        #pri, d = heapq.heappop(self.agenda)
+        d = self.agenda.popleft()
+        self.set.remove(d)
+        return d
+
+    def remove_tail(self, cnt):
+        # pri, d = heapq.heappop(self.heap)
+        for x in range(0, cnt):
+            d = self.agenda.pop()
+            self.set.remove(d)
 
 
 class Subgraph(object):
@@ -28,6 +63,7 @@ class Subgraph(object):
         self.h = h
         self.boundary = {}
         self.marker = marker
+        self.forgotten_edges = 0
 
     @staticmethod
     def singleton(h, edge):
@@ -42,6 +78,7 @@ class Subgraph(object):
         g = Subgraph(self.h)
         g.boundary = dict((node, edges.copy()) for (node, edges) in iteritems(self.boundary))
         g.marker = self.marker
+        g.forgotten_edges = self.forgotten_edges
         return g
 
     def __eq__(self, other):
@@ -50,12 +87,12 @@ class Subgraph(object):
     def __ne__(self, other):
         return not self == other
 
-    def __hash__(self, other):
+    def __hash__(self):
         return hash(self.__handle__())
 
     def __handle__(self):
         return (
-        id(self.h), self.marker, frozenset((node, frozenset(edges)) for node, edges in iteritems(self.boundary)))
+            id(self.h), self.marker, frozenset((node, frozenset(edges)) for node, edges in iteritems(self.boundary)))
 
     def __str__(self):
         return '{{{0}}}'.format(','.join(
@@ -72,6 +109,13 @@ class Subgraph(object):
                 return False
         return True
 
+    def size(self):
+        sizer = set()
+        for node in self.boundary:
+            for e in self.boundary[node]:
+                sizer.add(e)
+        return len(sizer) + self.forgotten_edges
+
     def merge(self, other):
         """Merge with another subgraph.
            To ensure that the resulting subgraph is connected,
@@ -80,13 +124,13 @@ class Subgraph(object):
             if all(not self.h.node[node]['marker'] for node in set(self.boundary) & set(other.boundary)):
                 raise UnificationFailure("subgraphs must be disjoint")
 
-#        for node, edges in iteritems(other.boundary):
-            #if node in self.boundary and self.boundary[node].intersection(edges):
-                #raise UnificationFailure("subgraphs must be disjoint")
+                #        for node, edges in iteritems(other.boundary):
+                # if node in self.boundary and self.boundary[node].intersection(edges):
+                # raise UnificationFailure("subgraphs must be disjoint")
 
         for node, edges in iteritems(other.boundary):
             res = []
-            if node in self.boundary: #
+            if node in self.boundary:  #
                 for e in self.boundary[node]:
                     for f in edges:
                         if e == f and type(e) == type(f):
@@ -99,6 +143,7 @@ class Subgraph(object):
                 self.boundary[node] = set()
             self.boundary[node].update(edges)
         self.marker = self.marker or other.marker
+        self.forgotten_edges += other.forgotten_edges
 
     @staticmethod
     def multigraph_intersection(self, e1, e2):
@@ -109,17 +154,26 @@ class Subgraph(object):
                     res.append(e)
         return res
 
-
     def forget_node(self, node):
         """Forget about a node. But this is only possible if all the node's edges have been added.
            Otherwise, we lose information."""
         if len(self.boundary[node]) != self.h.degree(node):
             raise UnificationFailure("can't forget a node until all its edges are recognized")
-        del self.boundary[node]
 
+        edges = set()
+        for x,y in self.boundary.items():
+            for z in y:
+                edges.add(z)
+        del self.boundary[node]
+        nedges = set()
+        for x,y in self.boundary.items():
+            for z in y:
+                nedges.add(z)
+        forgotten = (len(edges)-len(nedges))
+        self.forgotten_edges += forgotten
 
 class Item(object):
-    def __init__(self, rule, tnode, dot, map):
+    def __init__(self, rule, tnode, dot, map, prob):
         """
         Let H be the input graph.
 
@@ -140,6 +194,7 @@ class Item(object):
         self.tnode = tnode
         self.dot = dot
         self.map = map
+        self.prob = prob
 
     def __handle__(self):
         return (self.rule, self.tnode, self.dot, self.map.__handle__())
@@ -171,7 +226,7 @@ class Item(object):
 
 class Goal(object):
     def __init__(self):
-        pass
+        self.prob = 1.0
 
     def __eq__(self, other):
         return isinstance(other, Goal)
@@ -242,6 +297,7 @@ class Mapping(object):
     def set_domain(self, domain):
         for rnode in list(self.nodemap):
             if rnode not in domain:
+                #print ("FORGET: " + str(rnode))
                 self.rspan.forget_node(rnode)
                 self.hspan.forget_node(self.nodemap[rnode])
                 del self.nodemap[rnode]
@@ -272,11 +328,13 @@ class Mapping(object):
                 if self.r.node[rnode]['label'] != subrule.rhs.node[snode]['label']:
                     raise UnificationFailure("node labels do not match")
                 if rnode not in self.nodemap:
-                    print('e')
-                    #self.add(rnode, submap.nodemap[snode])
-                #assert rnode in self.nodemap
+                    pass
+                    # print('e')
+                    # self.add(rnode, submap.nodemap[snode])
+                    # assert rnode in self.nodemap
             else:
-                self.add(rnode, submap.nodemap[snode])
+                if snode in submap.nodemap:  # and rnode not in self.nodemap:
+                    self.add(rnode, submap.nodemap[snode])
 
         self.rspan.merge(Subgraph.singleton(self.r, redge))
         self.hspan.merge(submap.hspan)
@@ -295,25 +353,63 @@ class Chart(object):
         self.tnode_index = collections.defaultdict(list)
         self.lhs_index = collections.defaultdict(list)
         self.edge_index = collections.defaultdict(list)
-        self.agenda = set()
+        self.agenda = Agenda()
         self.indent_level = 2
+        self.max_size = 0
+        self.bucket = {}
+        self.cur_bucket = 0
 
     def add(self, item, ants=(), label=None, weight=1.):
+
         if verbose >= 3:
             print(" " * self.indent_level + "add: " + str(item))
 
         if item in self.chart:
             if verbose >= 3:
                 print(" " * self.indent_level + "  already in chart")
-                if item not in self.agenda:
+                if item not in self.agenda.agenda:
                     print(" " * self.indent_level + "  warning: not in agenda (inside weights will be incorrect)")
         else:
-            self.agenda.add(item)
-
+            if isinstance(item, Goal):
+                self.bucket['Goal']=Agenda()
+                self.bucket['Goal'].add(item)
+            else:
+                buck = item.map.hspan.size()
+                if buck < self.cur_bucket:
+                    print (buck, item, id(item.map.hspan))
+                    return
+                g = buck
+                while g not in self.bucket and g >= 0:
+                    self.bucket[g] = Agenda()
+                    g -= 1
+                self.bucket[buck].add(item, -item.prob)
         hypergraphs.add_hyperedge(self.chart, (item,) + ants, label=label, weight=weight)
+        self.bucket[self.cur_bucket].trim(800)
+
+    def is_empty(self):
+        if 'Goal' in self.bucket:
+            return True
+        sum = 0
+        for x in self.bucket.keys():
+            sum += len(self.bucket[x].agenda)
+            if sum > 0: return False
+        return True
 
     def get(self):
-        item = self.agenda.pop()
+        if len(self.bucket[self.cur_bucket].agenda) == 0:
+            if verbose >= 1:
+                for x,y in self.bucket.items():
+                    print(str(x) + ":" + str(len(y.agenda)), end=" ")
+                print()
+            self.cur_bucket+=1
+
+            while self.cur_bucket not in self.bucket or len(self.bucket[self.cur_bucket].agenda) == 0:
+                self.cur_bucket += 1
+
+            # crop bucket
+            self.bucket[self.cur_bucket].trim(200)
+
+        item = self.bucket[self.cur_bucket].get()
 
         if isinstance(item, Goal):
             return item
@@ -362,7 +458,7 @@ def viterbi(chart):
             if e.h[0] != u: continue
             w = bigfloat.bigfloat(1.)
             for v in e.h[1:]:
-                #print (v)
+                # print (v)
                 w *= visit(v)
             if w_max is None or w > w_max:
                 w_max = w
@@ -370,10 +466,12 @@ def viterbi(chart):
         weight[u] = w_max
         ant[u] = e_max
         return w_max
+
     visit(Goal())
 
     # Reconstruct derivation
     deriv = networkx.DiGraph()
+
     def visit(ritem, item):
         # ritem: item at the root of the rule
         # item: current item
@@ -432,7 +530,7 @@ def parse(g, starts, h):
             for e in rule.rhs.edges():
                 print('\t\t' + str(e))
             print()
-            #print("Rule {}: {} -> {}, (may be disconnected)".format(str(rule.id), rule.lhs, format_rhs(rule.rhs, show_all=True)))
+            # print("Rule {}: {} -> {}, (may be disconnected)".format(str(rule.id), rule.lhs, format_rhs(rule.rhs, show_all=True)))
 
         # Form tree decomposition.
         # Assume (at most) binary branching
@@ -459,23 +557,19 @@ def parse(g, starts, h):
     for rule in g:
         for tnode in rule.rhs_tree.nodes():
             if len(rule.rhs_tree.successors(tnode)) == 0:
-                item = Item(rule, tnode, 0, Mapping(rule.rhs, h))
+                #nds = sum(1 for x in rule.rhs.nodes(data=True) if x[1]['label'] is 'u' and 'external' not in x[1])
+                item = Item(rule, tnode, 0, Mapping(rule.rhs, h), rule.weight)
                 chart.add(item, label="Leaf")
 
-#   try this code below under different orderings of chart.agenda
+                #   try this code below under different orderings of chart.agenda
 
-    while len(chart.agenda) > 0:
+    while not chart.is_empty():
         trigger = chart.get()
         if trigger == Goal(): continue
         tnode = trigger.tnode
         rule = trigger.rule
         if verbose >= 2:
-            print("trigger:", trigger)
-            #if str(trigger).startswith('[1,0,1,{_0->') and not str(trigger).startswith('[1,0,1,{_0->7'):
-#                print ('f')
-#                continue;
-            if str(trigger).startswith( '[11,3,1' ):
-                print ('g')
+            print("trigger:", trigger, trigger.cnt, trigger.map.hspan.size())
 
         if trigger.dot < len(trigger.edges):
             # There are still edges left to process. Choose the next one, redge.
@@ -487,16 +581,14 @@ def parse(g, starts, h):
                 lhs = rule.rhs_signature(redge)
                 for rewrite in chart.lhs_index[lhs]:
                     if verbose >= 3:
-                        if str(rewrite) == "[5,2,2,{_2->5,_1->1,_0->4}]":
-                            print ('g')
-                        print("  rewrite:", rewrite) #trigger: [3,2,2,{_2->4,_1->2,_0->1}]   rewrite: [5,2,2,{_2->5,_1->4,_0->1}]
+                        print("  rewrite:", rewrite)
                     newmap = trigger.map.copy()
                     try:
                         newmap.add_rewrite(redge, rewrite.rule, rewrite.map)
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tnode, trigger.dot + 1, newmap)
+                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.rule.weight * rewrite.rule.weight * rule.weight)
                         chart.add(newitem, ants=(trigger, rewrite),
                                   label="Complete", weight=rewrite.rule.weight)
 
@@ -511,7 +603,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tnode, trigger.dot + 1, newmap)
+                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.prob * rule.weight)
                         chart.add(newitem, ants=(trigger,), label="Shift")
 
         elif tnode != rule.rhs_tree.graph['root']:
@@ -526,7 +618,7 @@ def parse(g, starts, h):
                 except UnificationFailure:
                     pass
                 else:
-                    newitem = Item(rule, tparent, 0, newmap)
+                    newitem = Item(rule, tparent, 0, newmap, trigger.prob * rule.weight)
                     chart.add(newitem, ants=(trigger,), label="Unary")
 
             elif len(tchildren) == 2:
@@ -544,7 +636,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tparent, 0, newmap)
+                        newitem = Item(rule, tparent, 0, newmap, trigger.prob * rule.weight)  # TODO what is the cnt here?
                         chart.add(newitem, ants=(trigger, sister), label="Binary")
             else:
                 raise ParserError("tree decomposition not binary branching")
@@ -558,19 +650,22 @@ def parse(g, starts, h):
                 oedge = rewritee.edges[rewritee.dot]
                 newmap = rewritee.map.copy()
                 try:
-                    newmap.add_rewrite(oedge, trigger.rule, trigger.map) #trigger: [5,2,2,{_2->5,_1->1,_0->4}] rewritee: [3,2,2,{_2->3,_1->4,_0->0}]
+                    if str(trigger).startswith('[53,2,2,{_1->19,_0->28'):
+                        pass
+                    newmap.add_rewrite(oedge, trigger.rule,
+                                       trigger.map)  # trigger: [5,2,2,{_2->5,_1->1,_0->4}] rewritee: [3,2,2,{_2->3,_1->4,_0->0}]
                 except UnificationFailure:
                     pass
                 else:
-                    newitem = Item(rewritee.rule, rewritee.tnode, rewritee.dot + 1, newmap)
+                    newitem = Item(rewritee.rule, rewritee.tnode, rewritee.dot + 1, newmap, trigger.prob * rewritee.rule.weight)
                     chart.add(newitem, ants=(rewritee, trigger),
                               label="Complete", weight=rule.weight)
 
             # and check if we're done
             if trigger.map.hspan.full() and len(external_nodes(rule.rhs)) == 0 and rule.lhs in starts:
                 chart.add(Goal(), ants=(trigger,), weight=rule.weight, label="Goal")
-                if verbose >= 2:
-                    print("GOAL: ", trigger)
+                if verbose >= 1:
+                    print("GOAL: ", trigger.map.hspan.size())
 
     return chart.chart
 

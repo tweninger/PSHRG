@@ -245,6 +245,7 @@ def derive(deriv, rules):
         dchildren = {}
         for dchild in deriv.successors(dnode):
             dchildren[deriv[dnode][dchild]['link']] = dchild
+
         rule = rules[deriv.node[dnode]['rule']]
         m = {}
         for v in hypergraphs.nodes(rule.rhs):
