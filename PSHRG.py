@@ -307,8 +307,8 @@ def main():
     # Graph is undirected
 
     ###################################
-    add_edge_events = {}
-    del_edge_events = {}
+    #add_edge_events = {}
+    #del_edge_events = {}
 
     # g = powerlaw_cluster_graph(10,2,.2)
 
@@ -338,10 +338,10 @@ def main():
     #add_edge_events[9] = [(11, 1), (11, 2), ]
 
 
-    add_edge_events[0] = [(0, 1), (1, 2), ]
-    add_edge_events[1] = [(2, 3), (3, 4), ]
-    add_edge_events[2] = [(4, 5), (5, 6), ]
-    add_edge_events[3] = [(6, 7), (7, 8), ]
+    #add_edge_events[0] = [(0, 1), (1, 2), ]
+    #add_edge_events[1] = [(2, 3), (3, 4), ]
+    #add_edge_events[2] = [(4, 5), (5, 6), ]
+    #add_edge_events[3] = [(6, 7), (7, 8), ]
 
     # del_edge_events[1] = [(1, 3)]
 
@@ -387,7 +387,7 @@ def main():
 
         # print_tree_decomp(tree_decomp_l[0])
 
-        if t < len(events) - 3:
+        if t < len(events) - 4:
             continue
 
 

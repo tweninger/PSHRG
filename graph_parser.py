@@ -22,36 +22,28 @@ class UnificationFailure(Exception):
 
 class Agenda(object):
     def __init__(self):
-        self.agenda = deque()
+        self.agenda = list()
         self.set = set()
 
     def __len__(self):
         return len(self.agenda)
 
-    def trim(self, size=100):
-        while len(self.agenda) > size:
-            x = self.agenda.popleft()
-            self.set.remove(x)
-
     def add(self, d, pri=1.):
         if d not in self.set:
-            #heapq.heappush(self.agenda, (pri, d))
-            self.agenda.append(d)
+            heapq.heappush(self.agenda, (pri, d))
+            #self.agenda.append(d)
             self.set.add(d)
+            if len(self.agenda) > 400:
+                pri_p, d = heapq.heappop(self.agenda)
+                self.set.remove(d)
         else:
             print("not")
 
     def get(self):
-        #pri, d = heapq.heappop(self.agenda)
-        d = self.agenda.popleft()
+        pri, d = heapq.heappop(self.agenda)
+        #d = self.agenda.popleft()
         self.set.remove(d)
         return d
-
-    def remove_tail(self, cnt):
-        # pri, d = heapq.heappop(self.heap)
-        for x in range(0, cnt):
-            d = self.agenda.pop()
-            self.set.remove(d)
 
 
 class Subgraph(object):
@@ -384,7 +376,6 @@ class Chart(object):
                     g -= 1
                 self.bucket[buck].add(item, -item.prob)
         hypergraphs.add_hyperedge(self.chart, (item,) + ants, label=label, weight=weight)
-        self.bucket[self.cur_bucket].trim(800)
 
     def is_empty(self):
         if 'Goal' in self.bucket:
@@ -406,8 +397,6 @@ class Chart(object):
             while self.cur_bucket not in self.bucket or len(self.bucket[self.cur_bucket].agenda) == 0:
                 self.cur_bucket += 1
 
-            # crop bucket
-            self.bucket[self.cur_bucket].trim(200)
 
         item = self.bucket[self.cur_bucket].get()
 
