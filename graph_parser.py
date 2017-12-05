@@ -5,13 +5,11 @@
 
 from __future__ import print_function
 from six import iteritems
-import sys
-import collections, itertools
-import networkx
 from grammar import *
 import bigfloat
 import heapq
-from collections import deque
+from math import log
+import bintrees
 
 verbose = 1
 
@@ -22,27 +20,30 @@ class UnificationFailure(Exception):
 
 class Agenda(object):
     def __init__(self):
-        self.agenda = list()
+        self.agenda = bintrees.FastAVLTree()
         self.set = set()
 
     def __len__(self):
         return len(self.agenda)
 
     def add(self, d, pri=1.):
-        if d not in self.set:
-            heapq.heappush(self.agenda, (pri, d))
-            #self.agenda.append(d)
-            self.set.add(d)
-            if len(self.agenda) > 400:
-                pri_p, d = heapq.heappop(self.agenda)
-                self.set.remove(d)
+        if len(self.agenda) > 2000:# and self.agenda.min_key()[0] < pri:
+            #print("Added ", pri, ": ", self.agenda[-1][0], self.agenda[0][0])
+
+            self.agenda.insert((pri,d), d)
+            d_p, _ = self.agenda.pop_min()
+            #print("Removed ", pri, ": ", d_p[0])
+            #self.set.add(d)
+            #self.set.remove(d_p)
+
         else:
-            print("not")
+            self.agenda.insert((pri,d), d)
+            #self.set.add(d)
 
     def get(self):
-        pri, d = heapq.heappop(self.agenda)
+        p, d = self.agenda.pop_max()
         #d = self.agenda.popleft()
-        self.set.remove(d)
+        #self.set.remove(d)
         return d
 
 
@@ -75,7 +76,6 @@ class Subgraph(object):
 
     def __eq__(self, other):
         return self.__handle__() == other.__handle__()
-
     def __ne__(self, other):
         return not self == other
 
@@ -374,7 +374,7 @@ class Chart(object):
                 while g not in self.bucket and g >= 0:
                     self.bucket[g] = Agenda()
                     g -= 1
-                self.bucket[buck].add(item, -item.prob)
+                self.bucket[buck].add(item, item.prob)
         hypergraphs.add_hyperedge(self.chart, (item,) + ants, label=label, weight=weight)
 
     def is_empty(self):
@@ -577,7 +577,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.rule.weight * rewrite.rule.weight * rule.weight)
+                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, log(trigger.rule.weight) + log(rewrite.rule.weight) + log(rule.weight))
                         chart.add(newitem, ants=(trigger, rewrite),
                                   label="Complete", weight=rewrite.rule.weight)
 
@@ -592,7 +592,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.prob * rule.weight)
+                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.prob + log(rule.weight))
                         chart.add(newitem, ants=(trigger,), label="Shift")
 
         elif tnode != rule.rhs_tree.graph['root']:
@@ -607,7 +607,7 @@ def parse(g, starts, h):
                 except UnificationFailure:
                     pass
                 else:
-                    newitem = Item(rule, tparent, 0, newmap, trigger.prob * rule.weight)
+                    newitem = Item(rule, tparent, 0, newmap, trigger.prob + log(rule.weight))
                     chart.add(newitem, ants=(trigger,), label="Unary")
 
             elif len(tchildren) == 2:
@@ -625,7 +625,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tparent, 0, newmap, trigger.prob * rule.weight)  # TODO what is the cnt here?
+                        newitem = Item(rule, tparent, 0, newmap, trigger.prob + log(rule.weight))
                         chart.add(newitem, ants=(trigger, sister), label="Binary")
             else:
                 raise ParserError("tree decomposition not binary branching")
@@ -646,7 +646,7 @@ def parse(g, starts, h):
                 except UnificationFailure:
                     pass
                 else:
-                    newitem = Item(rewritee.rule, rewritee.tnode, rewritee.dot + 1, newmap, trigger.prob * rewritee.rule.weight)
+                    newitem = Item(rewritee.rule, rewritee.tnode, rewritee.dot + 1, newmap, trigger.prob + log(rewritee.rule.weight))
                     chart.add(newitem, ants=(rewritee, trigger),
                               label="Complete", weight=rule.weight)
 

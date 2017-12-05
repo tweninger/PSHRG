@@ -1,23 +1,20 @@
 from __future__ import print_function
 
 import os
+import pickle
 import random
 import re
+import sys
+from time import time
 
 import networkx as nx
 
 import grammar
-import amr
-import hypergraphs
 import graph_parser as p
 import graph_sampler as gs
-import probabilistic_cfg as pcfg
-import probabilistic_gen as pg
 import tree_decomposition as td
-from time import time 
-import sys 
-import pickle 
-# prod_rules = {}
+import cProfile
+
 DEBUG = True
 
 
@@ -387,9 +384,8 @@ def main():
 
         # print_tree_decomp(tree_decomp_l[0])
 
-        if t < len(events) - 4:
-            continue
-
+        #if t < len(events) - 2:
+        #    continue
 
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)
@@ -432,6 +428,9 @@ def main():
 
     # parse doesn't work since the graph is disconnected. 
     print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
+
+    print('Number of Rules ', len(prev_rules))
+
     forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     # print'start deriving'
@@ -446,3 +445,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    #cProfile.runctx('main()', globals(), locals())
