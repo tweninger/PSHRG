@@ -173,9 +173,11 @@ def add_edges(g, t):
 class Rule(object):
     next_id = 0
 
-    def __init__(self, lhs, rhs, id=None, weight=1.):
+    def __init__(self, lhs, rhs, time, id=None, weight=1.):
         self.lhs = lhs
         self.rhs = rhs
+        self.time = time
+        self.iso = False
         if id is None:
             self.id = Rule.next_id
             Rule.next_id += 1

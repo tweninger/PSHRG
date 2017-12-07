@@ -326,12 +326,10 @@ def main():
     #add_edge_events[0] = [(2, 0), (2, 1), ]
     #add_edge_events[1] = [(3, 0), (3, 2), ]
     #add_edge_events[2] = [(4, 0), (4, 1), ]
-    #add_edge_events[3] = [(5, 0), (5, 2), ]
-    #add_edge_events[4] = [(6, 0), (6, 2), ]
-    #add_edge_events[5] = [(7, 1), (7, 3), ]
-    #add_edge_events[6] = [(8, 1), (8, 7), ]
-    #add_edge_events[7] = [(9, 1), (9, 2), ]
-    #add_edge_events[8] = [(10, 1), (10, 4), ]
+    #add_edge_events[3] = [(5, 0), (5, 2), (6, 0), (6, 2),]
+    #add_edge_events[4] = [(7, 1), (7, 3), (8, 1), (8, 7), (9, 4), (9, 2), (10, 1), (10, 4),]
+    #add_edge_events[5] = [ ]
+    #add_edge_events[6] = [ ]
     #add_edge_events[9] = [(11, 1), (11, 2), ]
 
 
@@ -367,33 +365,36 @@ def main():
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
 
     shrg_rules = {}
+    i=0
     for t in events:
         decomp_time = time()
-        if t > 7: # the 8th event is very very slow for email dataset!  
-            break
+
         if t in add_edge_events:
             for u, v in add_edge_events[t]:
                 g_next.add_edge(u, v, label='e')
                 # # printu, v, t
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
-                g_next.remove_edge(u, v)
+                if (u,v) in g_next:
+                    g_next.remove_edge(u, v)
         nx.set_node_attributes(g_next, 'label', 'u')
+
+        #get WCC
+        if not nx.is_weakly_connected(g_next):
+            g_next = max(nx.weakly_connected_component_subgraphs(g_next), key=len)
+
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
 
-        # print_tree_decomp(tree_decomp_l[0])
 
-        #if t < len(events) - 2:
-        #    continue
 
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)
 
         # print_tree_decomp(tree_decomp)
         # 
-
-        td.new_visit(tree_decomp, g_prev, g_next, shrg_rules)
+        i += 1
+        td.new_visit(tree_decomp, g_prev, g_next, shrg_rules, i)
         g_prev = g_next.copy()
         print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=sys.stderr)
 
@@ -407,37 +408,76 @@ def main():
 
     prev_rules = []
     next_rules = []
-    for lhs_set in shrg_rules.values():
-        for rule_tuple in lhs_set:
-            rule_tuple[0].weight /= float(len(lhs_set))
-            prev_rules.append(rule_tuple[0])
+    anchor_candidates = []
 
     for lhs_set in shrg_rules.values():
         for rule_tuple in lhs_set:
-            rule_tuple[1].weight /= float(len(lhs_set))
+            nonterm = False
+            for n in rule_tuple[0].rhs.nodes(data=True):
+                if isinstance(n[1]['label'], grammar.Nonterminal):
+                    nonterm = True
+                    break
+            if not nonterm and rule_tuple[1].time == i and rule_tuple[1].iso == False:
+                for n in rule_tuple[0].rhs.nodes(data=True):
+                    if 'external' not in n[1] and not isinstance(n[1]['label'], grammar.Nonterminal):
+                        anchor_candidates.append( (n[1]['oid'], rule_tuple) )
+
+            #if nonterm and rule_tuple[1].iso == False:
+            #    for n in rule_tuple[0].rhs.nodes(data=True):
+            #        if not isinstance(n[1]['label'], grammar.Nonterminal):
+            #            print('Candidates: ', rule_tuple)
+
+    print('Number of Anchors', len(anchor_candidates))
+    anchors = random.sample(anchor_candidates, 3)
+    for anchor in anchors:
+        oid, rule = anchor
+        prev, next = rule
+        for n in prev.rhs.nodes(data=True):
+            if 'oid' in n[1] and n[1]['oid'] == oid:
+                n[1]['label'] = oid
+        for n in next.rhs.nodes(data=True):
+            if 'oid' in n[1] and n[1]['oid'] == oid:
+                n[1]['label'] = oid
+                print('label changed to oid', rule[1].id, rule[1].time, n)
+
+        for n in g_next.nodes(data=True):
+            if n[0] == oid:
+                n[1]['label'] = oid
+
+        for n in g_prev.nodes(data=True):
+            if n[0] == oid:
+                n[1]['label'] = oid
+
+    for lhs_set in shrg_rules.values():
+        s = 0
+        for rule_tuple in lhs_set:
+            prev, next = rule_tuple
+            s += prev.weight
+
+        for rule_tuple in lhs_set:
+            rule_tuple[1].weight /= float(s)
             next_rules.append(rule_tuple[1])
+
+            rule_tuple[0].weight /= float(s)
+            prev_rules.append(rule_tuple[0])
+
+
+
 
     #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
-    # print'start parsing'
-
-    if not nx.is_weakly_connected(g_next):
-        g_next = max(nx.weakly_connected_component_subgraphs(g_next), key=len) # get the largest WCC
-        print('Working with the largest weakly connected component', file=sys.stderr)
-
-    # parse doesn't work since the graph is disconnected. 
     print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
 
     print('Number of Rules ', len(prev_rules))
 
-    forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
+    forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     # print'start deriving'
 
     # print(p.derive(p.viterbi(forest), next_rules))
     print('Derive start, time elapsed:', time() - start, 'sec', file=sys.stderr)
-    p.derive(p.viterbi(forest), prev_rules)
+    p.derive(p.viterbi(forest), next_rules)
     print('Derive end, time elapsed:', time() - start, 'sec', file=sys.stderr)
     # print(p.get_rule_list(p.viterbi(forest)))
     p.get_rule_list(p.viterbi(forest))

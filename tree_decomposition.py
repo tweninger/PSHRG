@@ -193,7 +193,7 @@ def make_rooted(graph, u, memo=None):
     return (u, children)
 
 
-def new_visit(datree, g_prev, g_next, shrg_rules, indent=0, parent=None):
+def new_visit(datree, g_prev, g_next, shrg_rules, i, indent=0, parent=None):
 
     node, subtrees = datree
     itx = parent & node if parent else set()
@@ -201,12 +201,12 @@ def new_visit(datree, g_prev, g_next, shrg_rules, indent=0, parent=None):
     rhs_next = get_production_rule(g_next, node, itx)
     s = [list(node & child) for child, _ in subtrees]
 
-    add_to_shrg_rules(shrg_rules, itx, rhs_prev, rhs_next, s)
+    add_to_shrg_rules(shrg_rules, itx, rhs_prev, rhs_next, s, i)
 
     # print " "*indent, " ".join(str(x) for x in node) # prints Tree
     for subtree in subtrees:
         tv, subsubtrees = subtree
-        new_visit(subtree, g_prev, g_next, shrg_rules, indent=indent + 2, parent=node)
+        new_visit(subtree, g_prev, g_next, shrg_rules, i, indent=indent + 2, parent=node)
 
 
 def get_production_rule(g, child, itx):
@@ -245,11 +245,11 @@ def make_rule(rhs, ext, s):
             i += 1
         if n in ext:
             nid = '_' + str(d[n])
-            rhs_s.add_node(nid, label='u', nid = nid, external = ext_id)
+            rhs_s.add_node(nid, label='u', nid = nid, external = ext_id, oid = n)
             ext_id += 1
         else:
             nid = '_' + str(d[n])
-            rhs_s.add_node(nid, label='u', nid = nid)
+            rhs_s.add_node(nid, label='u', nid = nid, oid = n)
 
     attrs = {'label': 'e'}
     for e in rhs.edges():
@@ -285,6 +285,7 @@ def edge_isomorph(x, y):
             return False
     return True
 
+
 def node_isomorph(x, y):
     if 'nid' in x and 'nid' in y and x['nid'] != y['nid']: return False
     if x['label'] != y['label']: return False
@@ -293,12 +294,13 @@ def node_isomorph(x, y):
             return False
     return True
 
-def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
+
+def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s, t):
 
     lhs_he = grammar.Nonterminal(str(len(lhs)))
 
-    rule_prev = grammar.Rule(lhs_he, make_rule(rhs_prev, lhs, s))
-    rule_next = grammar.Rule(lhs_he, make_rule(rhs_next, lhs, s))
+    rule_prev = grammar.Rule(lhs_he, make_rule(rhs_prev, lhs, s), t)
+    rule_next = grammar.Rule(lhs_he, make_rule(rhs_next, lhs, s), t)
 
     print lhs_he, '->', rule_prev.rhs.edges(), rule_next.rhs.edges()
 
@@ -315,8 +317,10 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s):
                 if nx.is_isomorphic(rhs[1].rhs, rule_next.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
                     print("next isomorph")
                     match = rhs_list[i]
-                    match[0].weight += 1
-                    match[1].weight += 1
+                    match[0].weight *= 2
+                    match[0].iso = True
+                    match[1].weight *= 2
+                    match[1].iso = True
 
         if not match:
             shrg_rules[lhs_he] += [(rule_prev, rule_next)]

@@ -27,7 +27,7 @@ class Agenda(object):
         return len(self.agenda)
 
     def add(self, d, pri=1.):
-        if len(self.agenda) > 2000:# and self.agenda.min_key()[0] < pri:
+        if len(self.agenda) > 8000:# and self.agenda.min_key()[0] < pri:
             #print("Added ", pri, ": ", self.agenda[-1][0], self.agenda[0][0])
 
             self.agenda.insert((pri,d), d)
@@ -461,7 +461,7 @@ def viterbi(chart):
     # Reconstruct derivation
     deriv = networkx.DiGraph()
 
-    def visit(ritem, item):
+    def visit(ritem, item, i=0):
         # ritem: item at the root of the rule
         # item: current item
         deriv.add_node(ritem, rule=ritem.rule.id)
@@ -469,12 +469,13 @@ def viterbi(chart):
         if hypergraphs.edge(chart, e)['label'] == "Complete":
             _, aitem, pitem = e
             link = hypergraphs.edge(aitem.rule.rhs, aitem.nextedge)['link']
-            visit(ritem, aitem)
-            visit(pitem, pitem)
+            visit(ritem, aitem, i+1)
+            visit(pitem, pitem, i+1)
             deriv.add_edge(ritem, pitem, link=link)
+
         else:
             for item in e.h[1:]:
-                visit(ritem, item)
+                visit(ritem, item, i+1)
 
     [_, item] = ant[Goal()]
     visit(item, item)
@@ -547,7 +548,7 @@ def parse(g, starts, h):
         for tnode in rule.rhs_tree.nodes():
             if len(rule.rhs_tree.successors(tnode)) == 0:
                 #nds = sum(1 for x in rule.rhs.nodes(data=True) if x[1]['label'] is 'u' and 'external' not in x[1])
-                item = Item(rule, tnode, 0, Mapping(rule.rhs, h), rule.weight)
+                item = Item(rule, tnode, 0, Mapping(rule.rhs, h), log(rule.weight))
                 chart.add(item, label="Leaf")
 
                 #   try this code below under different orderings of chart.agenda
@@ -577,7 +578,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, log(trigger.rule.weight) + log(rewrite.rule.weight) + log(rule.weight))
+                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.prob + log(rewrite.rule.weight))
                         chart.add(newitem, ants=(trigger, rewrite),
                                   label="Complete", weight=rewrite.rule.weight)
 
@@ -592,7 +593,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.prob + log(rule.weight))
+                        newitem = Item(rule, tnode, trigger.dot + 1, newmap, trigger.prob)
                         chart.add(newitem, ants=(trigger,), label="Shift")
 
         elif tnode != rule.rhs_tree.graph['root']:
@@ -607,7 +608,7 @@ def parse(g, starts, h):
                 except UnificationFailure:
                     pass
                 else:
-                    newitem = Item(rule, tparent, 0, newmap, trigger.prob + log(rule.weight))
+                    newitem = Item(rule, tparent, 0, newmap, trigger.prob)
                     chart.add(newitem, ants=(trigger,), label="Unary")
 
             elif len(tchildren) == 2:
@@ -625,7 +626,7 @@ def parse(g, starts, h):
                     except UnificationFailure:
                         pass
                     else:
-                        newitem = Item(rule, tparent, 0, newmap, trigger.prob + log(rule.weight))
+                        newitem = Item(rule, tparent, 0, newmap, trigger.prob)
                         chart.add(newitem, ants=(trigger, sister), label="Binary")
             else:
                 raise ParserError("tree decomposition not binary branching")
