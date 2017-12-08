@@ -386,14 +386,16 @@ def main():
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
 
-
+        i += 1
+        if i < len(events)-2:
+            continue
 
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)
 
         # print_tree_decomp(tree_decomp)
         # 
-        i += 1
+
         td.new_visit(tree_decomp, g_prev, g_next, shrg_rules, i)
         g_prev = g_next.copy()
         print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=sys.stderr)
@@ -428,7 +430,7 @@ def main():
             #            print('Candidates: ', rule_tuple)
 
     print('Number of Anchors', len(anchor_candidates))
-    anchors = random.sample(anchor_candidates, 3)
+    anchors = random.sample(anchor_candidates, len(anchor_candidates))
     for anchor in anchors:
         oid, rule = anchor
         prev, next = rule
@@ -471,7 +473,7 @@ def main():
 
     print('Number of Rules ', len(prev_rules))
 
-    forest = p.parse( next_rules, [grammar.Nonterminal('0')], g_next )
+    forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     # print'start deriving'
 
