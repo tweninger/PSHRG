@@ -304,21 +304,21 @@ def main():
     # Graph is undirected
 
     ###################################
-    #add_edge_events = {}
-    #del_edge_events = {}
+    add_edge_events = {}
+    del_edge_events = {}
 
-    # g = powerlaw_cluster_graph(10,2,.2)
+    g = powerlaw_cluster_graph(10,2,.2)
 
-    # ## printg.edges(data=True)
-    # ## printsorted(g.edges(data=True), key=lambda x: x[2]['t'])
-    # ## printg.size()
+    print (g.edges(data=True))
+    print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
+    print (g.size())
 
-    # for e in g.edges_iter(data=True):
-    #     if e[2]['t'] not in add_edge_events:
-    #         add_edge_events[e[2]['t']] = [(e[0], e[1])]
-    #     else:
-    #         add_edge_events[e[2]['t']].append( (e[0], e[1]) )
-    ##########################################################
+    for e in g.edges_iter(data=True):
+        if e[2]['t'] not in add_edge_events:
+            add_edge_events[e[2]['t']] = [(e[0], e[1])]
+        else:
+            add_edge_events[e[2]['t']].append( (e[0], e[1]) )
+
 
     #exit()
     #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
@@ -347,16 +347,16 @@ def main():
     # filename = './test/pickles/enron/full'
 
     # filename = './test/pickles/dutch/23'
-    filename = './test/pickles/dutch/3'
+    #filename = './test/pickles/dutch/3'
     #filename = './test/pickles/dutch/full'
     
-    add_edge_filename = filename + '_add_edge.pkl'
-    with open(add_edge_filename, 'rb') as f:
-        add_edge_events = pickle.load(f)
+    #add_edge_filename = filename + '_add_edge.pkl'
+    #with open(add_edge_filename, 'rb') as f:
+    #    add_edge_events = pickle.load(f)
 
-    del_edge_filename = filename + '_del_edge.pkl'
-    with open(del_edge_filename, 'rb') as f:
-        del_edge_events = pickle.load(f)
+    #del_edge_filename = filename + '_del_edge.pkl'
+    #with open(del_edge_filename, 'rb') as f:
+    #    del_edge_events = pickle.load(f)
     #############
     print('Loading done!', file=sys.stderr)
 
@@ -387,8 +387,8 @@ def main():
         tree_decomp_l = tree_decomposition(g_union)
 
         i += 1
-        if i < len(events)-2:
-            continue
+        #if i < len(events)-2:
+        #    continue
 
         tree_decomp = prune(tree_decomp_l[0], frozenset())
         tree_decomp = binarize(tree_decomp)

@@ -27,7 +27,7 @@ class Agenda(object):
         return len(self.agenda)
 
     def add(self, d, pri=1.):
-        if len(self.agenda) > 8000:# and self.agenda.min_key()[0] < pri:
+        if len(self.agenda) > 2000:# and self.agenda.min_key()[0] < pri:
             #print("Added ", pri, ": ", self.agenda[-1][0], self.agenda[0][0])
 
             self.agenda.insert((pri,d), d)
