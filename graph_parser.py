@@ -370,6 +370,8 @@ class Chart(object):
                 if buck < self.cur_bucket:
                     print (buck, item, id(item.map.hspan))
                     return
+                #elif buck == self.cur_bucket and buck > 10:
+                #    return
                 g = buck
                 while g not in self.bucket and g >= 0:
                     self.bucket[g] = Agenda()
