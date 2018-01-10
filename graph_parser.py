@@ -11,7 +11,7 @@ import heapq
 from math import log
 import bintrees
 
-verbose = 1
+verbose = 0
 
 
 class UnificationFailure(Exception):
@@ -353,8 +353,8 @@ class Chart(object):
 
     def add(self, item, ants=(), label=None, weight=1.):
 
-        if verbose >= 3:
-            print(" " * self.indent_level + "add: " + str(item))
+        # if verbose >= 3:
+        #     print(" " * self.indent_level + "add: " + str(item))
 
         if item in self.chart:
             if verbose >= 3:
@@ -558,8 +558,8 @@ def parse(g, starts, h):
         if trigger == Goal(): continue
         tnode = trigger.tnode
         rule = trigger.rule
-        if verbose >= 2:
-            print("trigger:", trigger, trigger.cnt, trigger.map.hspan.size())
+        # if verbose >= 2:
+        #     print("trigger:", trigger, trigger.cnt, trigger.map.hspan.size())
 
         if trigger.dot < len(trigger.edges):
             # There are still edges left to process. Choose the next one, redge.
@@ -570,8 +570,8 @@ def parse(g, starts, h):
                 # search for possible rewrites
                 lhs = rule.rhs_signature(redge)
                 for rewrite in chart.lhs_index[lhs]:
-                    if verbose >= 3:
-                        print("  rewrite:", rewrite)
+                    # if verbose >= 3:
+                    #     print("  rewrite:", rewrite)
                     newmap = trigger.map.copy()
                     try:
                         newmap.add_rewrite(redge, rewrite.rule, rewrite.map)
@@ -635,8 +635,8 @@ def parse(g, starts, h):
             # root of rule rhs: look for items to rewrite
             lhs = rule.lhs_signature()
             for rewritee in chart.edge_index[lhs]:
-                if verbose >= 3:
-                    print("  rewritee:", rewritee)
+                # if verbose >= 3:
+                #     print("  rewritee:", rewritee)
                 oedge = rewritee.edges[rewritee.dot]
                 newmap = rewritee.map.copy()
                 try:

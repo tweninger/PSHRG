@@ -265,7 +265,7 @@ def powerlaw_cluster_graph(n, m, p, seed=None):
         random.seed(seed)
 
     G=rg.empty_graph(m, create_using=nx.DiGraph()) # add m initial nodes (m0 in barabasi-speak)
-    G.name="Powerlaw-Cluster Graph"
+    G.name="Powerlaw-Cluster Graph n = {}, m = {}, p = {}".format(n, m, p)
     repeated_nodes=G.nodes()  # list of existing nodes to sample from
                            # with nodes repeated once for each adjacent edge
     source=m               # next node is m
@@ -307,12 +307,14 @@ def main():
     add_edge_events = {}
     del_edge_events = {}
 
-    g = powerlaw_cluster_graph(10,2,.2)
+    g = powerlaw_cluster_graph(10, 3, .3)
 
-    print (g.edges(data=True))
-    print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
-    print (g.size())
+    print(g.name, file=sys.stderr)
 
+    # print (g.edges(data=True))
+    # print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
+    # print (g.size())
+    #
     for e in g.edges_iter(data=True):
         if e[2]['t'] not in add_edge_events:
             add_edge_events[e[2]['t']] = [(e[0], e[1])]
@@ -320,7 +322,6 @@ def main():
             add_edge_events[e[2]['t']].append( (e[0], e[1]) )
 
 
-    #exit()
     #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
 
     #add_edge_events[0] = [(2, 0), (2, 1), ]
@@ -350,14 +351,50 @@ def main():
     #filename = './test/pickles/dutch/3'
     #filename = './test/pickles/dutch/full'
     
-    #add_edge_filename = filename + '_add_edge.pkl'
-    #with open(add_edge_filename, 'rb') as f:
+    # add_edge_filename = filename + '_add_edge.pkl'
+    # with open(add_edge_filename, 'rb') as f:
     #    add_edge_events = pickle.load(f)
-
-    #del_edge_filename = filename + '_del_edge.pkl'
-    #with open(del_edge_filename, 'rb') as f:
+    #
+    # del_edge_filename = filename + '_del_edge.pkl'
+    # with open(del_edge_filename, 'rb') as f:
     #    del_edge_events = pickle.load(f)
+    # with open('./test/pickles/add_edge_path10.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/regular/ladder_10_add_edge.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+
+    # with open('./test/pickles/classrooms/class_add.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/classrooms/class_del.pkl', 'rb') as f:
+    #     del_edge_events = pickle.load(f)
+
+    # with open('./test/pickles/haggle/hag_add.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/haggle/hag_del.pkl', 'rb') as f:
+    #     del_edge_events = pickle.load(f)
+    #
+    # with open('./test/pickles/mit/mit_add.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/mit/mit_del.pkl', 'rb') as f:
+    #     del_edge_events = pickle.load(f)
+
+    # with open('./test/pickles/moreno/mor_add.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/moreno/mor_del.pkl', 'rb') as f:
+    #     del_edge_events = pickle.load(f)
+
+    # with open('./test/pickles/rad_email/rad_add.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/rad_email/rad_del.pkl', 'rb') as f:
+    #     del_edge_events = pickle.load(f)
+
+    # with open('./test/pickles/socio/soc_add.pkl', 'rb') as f:
+    #     add_edge_events = pickle.load(f)
+    # with open('./test/pickles/socio/soc_del.pkl', 'rb') as f:
+    #     del_edge_events = pickle.load(f)
+
     #############
+    print('socio', file=sys.stderr)
     print('Loading done!', file=sys.stderr)
 
     g_prev = nx.DiGraph()
@@ -440,7 +477,7 @@ def main():
         for n in next.rhs.nodes(data=True):
             if 'oid' in n[1] and n[1]['oid'] == oid:
                 n[1]['label'] = oid
-                print('label changed to oid', rule[1].id, rule[1].time, n)
+                # print('label changed to oid', rule[1].id, rule[1].time, n)
 
         for n in g_next.nodes(data=True):
             if n[0] == oid:
@@ -468,18 +505,18 @@ def main():
 
     #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
-
     print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
 
     print('Number of Rules ', len(prev_rules))
 
-    forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
+    forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_prev )
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
     # print'start deriving'
 
     # print(p.derive(p.viterbi(forest), next_rules))
     print('Derive start, time elapsed:', time() - start, 'sec', file=sys.stderr)
     p.derive(p.viterbi(forest), next_rules)
+    # p.derive(p.viterbi(forest), prev_rules)
     print('Derive end, time elapsed:', time() - start, 'sec', file=sys.stderr)
     # print(p.get_rule_list(p.viterbi(forest)))
     p.get_rule_list(p.viterbi(forest))
