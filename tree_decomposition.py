@@ -302,7 +302,7 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s, t):
     rule_prev = grammar.Rule(lhs_he, make_rule(rhs_prev, lhs, s), t)
     rule_next = grammar.Rule(lhs_he, make_rule(rhs_next, lhs, s), t)
 
-    print lhs_he, '->', rule_prev.rhs.edges(), rule_next.rhs.edges()
+    # print lhs_he, '->', rule_prev.rhs.edges(), rule_next.rhs.edges()
 
     if lhs_he not in shrg_rules:
         shrg_rules[lhs_he] = [(rule_prev, rule_next)]
@@ -313,9 +313,9 @@ def add_to_shrg_rules(shrg_rules, lhs, rhs_prev, rhs_next, s, t):
         for i in range(0,len(rhs_list)):
             rhs = rhs_list[i]
             if nx.is_isomorphic(rhs[0].rhs, rule_prev.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
-                print("prev isomorph")
+                # print("prev isomorph")
                 if nx.is_isomorphic(rhs[1].rhs, rule_next.rhs, edge_match=edge_isomorph, node_match=node_isomorph):
-                    print("next isomorph")
+                    # print("next isomorph")
                     match = rhs_list[i]
                     match[0].weight *= 2
                     match[0].iso = True
