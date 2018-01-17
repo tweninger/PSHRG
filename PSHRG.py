@@ -307,11 +307,11 @@ def main():
     add_edge_events = {}
     del_edge_events = {}
 
-    g = powerlaw_cluster_graph(10,2,.2)
+    g = powerlaw_cluster_graph(7,2,.2)
 
-    print (g.edges(data=True))
-    print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
-    print (g.size())
+    #print (g.edges(data=True))
+    #print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
+    #print (g.size())
 
     for e in g.edges_iter(data=True):
         if e[2]['t'] not in add_edge_events:
@@ -323,14 +323,18 @@ def main():
     #exit()
     #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
 
-    #add_edge_events[0] = [(2, 0), (2, 1), ]
-    #add_edge_events[1] = [(3, 0), (3, 2), ]
-    #add_edge_events[2] = [(4, 0), (4, 1), ]
-    #add_edge_events[3] = [(5, 0), (5, 2), (6, 0), (6, 2),]
-    #add_edge_events[4] = [(7, 1), (7, 3), (8, 1), (8, 7), (9, 4), (9, 2), (10, 1), (10, 4),]
+    #add_edge_events[0] = [(2, 0), (2, 1)]
+    #add_edge_events[1] = [(3, 0), (3, 2), (4, 0), (4, 1)]
+    #add_edge_events[2] = [(5, 0), (5, 2)]
+    #add_edge_events[3] = [(6, 0), (6, 3)]
+
+    #del_edge_events[2] = [(2, 0)]
     #add_edge_events[5] = [ ]
     #add_edge_events[6] = [ ]
     #add_edge_events[9] = [(11, 1), (11, 2), ]
+
+    #add_edge_events = {0: [(0, 1), (0, 3), (1, 2), (2, 3)], 1: [(2, 4), (3, 5), (4, 5)], 2: [(4, 6), (5, 7), (6, 7)],
+    # 3: [(6, 8), (7, 9), (8, 9)]}
 
 
     #add_edge_events[0] = [(0, 1), (1, 2), ]
@@ -364,6 +368,10 @@ def main():
     g_next = nx.DiGraph()
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
 
+    print(add_edge_events)
+
+    add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
+
     shrg_rules = {}
     i=0
     for t in events:
@@ -375,7 +383,7 @@ def main():
                 # # printu, v, t
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
-                if (u,v) in g_next:
+                if (u,v) in g_next.edges():
                     g_next.remove_edge(u, v)
         nx.set_node_attributes(g_next, 'label', 'u')
 
@@ -386,13 +394,19 @@ def main():
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
 
+
         i += 1
         #if i < len(events)-2:
-        #    continue
+            #continue
 
-        tree_decomp = prune(tree_decomp_l[0], frozenset())
+        print (tree_decomp_l[0])
+
+        tree_decomp = tree_decomp_l[0]
+        tree_decomp = prune(tree_decomp, frozenset())
         tree_decomp = binarize(tree_decomp)
+        tree_decomp = prune(tree_decomp, frozenset())
 
+        print(tree_decomp)
         # print_tree_decomp(tree_decomp)
         # 
 
@@ -469,21 +483,25 @@ def main():
     #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
-    print('Parse start, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
+    print('Parse start, time elapsed: {} sec'.format(time() - start))
 
     print('Number of Rules ', len(prev_rules))
 
     forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
-    print('Parse end, time elapsed: {} sec'.format(time() - start), file=sys.stderr)
+    print('Parse end, time elapsed: {} sec'.format(time() - start))
     # print'start deriving'
 
     # print(p.derive(p.viterbi(forest), next_rules))
-    print('Derive start, time elapsed:', time() - start, 'sec', file=sys.stderr)
-    p.derive(p.viterbi(forest), next_rules)
-    print('Derive end, time elapsed:', time() - start, 'sec', file=sys.stderr)
-    # print(p.get_rule_list(p.viterbi(forest)))
-    p.get_rule_list(p.viterbi(forest))
-    print('End in', time() - start, 'sec!!', file=sys.stderr)
+
+    #p.derive(p.viterbi(forest), next_rules)
+
+    i = 0
+    print('Rule Ordering')
+    for rule in p.get_rule_list(p.viterbi(forest)):
+        print(rule.rule.id, end=', ')
+
+    #p.get_rule_list(p.viterbi(forest))
+    print('End in', time() - start, 'sec!!')
 
 if __name__ == "__main__":
     main()

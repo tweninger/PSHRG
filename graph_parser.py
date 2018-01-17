@@ -450,6 +450,8 @@ def viterbi(chart):
             w = bigfloat.bigfloat(1.)
             for v in e.h[1:]:
                 # print (v)
+                if v == u :
+                    continue
                 w *= visit(v)
             if w_max is None or w > w_max:
                 w_max = w
@@ -470,6 +472,8 @@ def viterbi(chart):
         e = ant[item]
         if hypergraphs.edge(chart, e)['label'] == "Complete":
             _, aitem, pitem = e
+            if ritem == pitem:
+                return
             link = hypergraphs.edge(aitem.rule.rhs, aitem.nextedge)['link']
             visit(ritem, aitem, i+1)
             visit(pitem, pitem, i+1)
