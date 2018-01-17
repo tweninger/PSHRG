@@ -248,7 +248,7 @@ def derive(deriv, rules):
         for dchild in deriv.successors(dnode):
             dchildren[deriv[dnode][dchild]['link']] = dchild
 
-        rule = rules[deriv.node[dnode]['rule']]
+        rule = rules[deriv.node[dnode]['rule']+1]
         m = {}
         for v in hypergraphs.nodes(rule.rhs):
             if 'external' in rule.rhs.node[v]:
@@ -263,6 +263,8 @@ def derive(deriv, rules):
             attrs = hypergraphs.edge(rule.rhs, e)
             me = tuple(m[v] for v in e)
             if isinstance(attrs.get('label', None), Nonterminal):
+                if attrs['link'] not in dchildren:
+                    continue ## removes error created by removing cycles
                 visit(dchildren[attrs['link']], me)
             else:
                 hypergraphs.add_hyperedge(h, me, **attrs)

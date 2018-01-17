@@ -491,14 +491,19 @@ def main():
     print('Parse end, time elapsed: {} sec'.format(time() - start))
     # print'start deriving'
 
-    # print(p.derive(p.viterbi(forest), next_rules))
+    new_g = p.derive(p.viterbi(forest), next_rules)
+    print()
+    print('new Graph:')
+    print ('Number of edges: ', len(new_g.edges()))
 
     #p.derive(p.viterbi(forest), next_rules)
 
-    i = 0
-    print('Rule Ordering')
-    for rule in p.get_rule_list(p.viterbi(forest)):
-        print(rule.rule.id, end=', ')
+    #i = 0
+    #print('Rule Ordering')
+    #for rule in p.get_rule_list(p.viterbi(forest)):
+    #    print(rule.rule.id, end=', ')
+
+    #print()
 
     #p.get_rule_list(p.viterbi(forest))
     print('End in', time() - start, 'sec!!')

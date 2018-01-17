@@ -11,7 +11,7 @@ import heapq
 from math import log
 import bintrees
 
-verbose = 0
+verbose = 1
 
 
 class UnificationFailure(Exception):
