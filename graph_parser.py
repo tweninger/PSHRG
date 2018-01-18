@@ -466,26 +466,28 @@ def viterbi(chart):
     # Reconstruct derivation
     deriv = networkx.DiGraph()
 
-    def visit(ritem, item, i=0):
+    def visit(ritem, item, clo, i=0):
         # ritem: item at the root of the rule
         # item: current item
         deriv.add_node(ritem, rule=ritem.rule.id)
         e = ant[item]
         if hypergraphs.edge(chart, e)['label'] == "Complete":
             _, aitem, pitem = e
-            if ritem == pitem:
+            print(ritem, aitem, pitem)
+            if pitem in clo:
                 return
             link = hypergraphs.edge(aitem.rule.rhs, aitem.nextedge)['link']
-            visit(ritem, aitem, i+1)
-            visit(pitem, pitem, i+1)
+            clo.add(pitem)
+            visit(ritem, aitem, clo.copy(), i+1)
+            visit(pitem, pitem, clo.copy(), i+1)
             deriv.add_edge(ritem, pitem, link=link)
 
         else:
             for item in e.h[1:]:
-                visit(ritem, item, i+1)
+                visit(ritem, item, clo.copy(), i+1)
 
     [_, item] = ant[Goal()]
-    visit(item, item)
+    visit(item, item, set())
     [deriv.graph['root']] = [v for v in deriv if len(deriv.predecessors(v)) == 0]
     return deriv
 

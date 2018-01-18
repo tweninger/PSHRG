@@ -371,6 +371,8 @@ def main():
     print(add_edge_events)
 
     add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
+    #add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
+    #add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
 
     shrg_rules = {}
     i=0
@@ -494,7 +496,11 @@ def main():
     new_g = p.derive(p.viterbi(forest), next_rules)
     print()
     print('new Graph:')
-    print ('Number of edges: ', len(new_g.edges()))
+    import hypergraphs
+    print ('Edges: ', len(hypergraphs.edges(new_g)))
+    for e in hypergraphs.edges(new_g):
+        print(e)
+
 
     #p.derive(p.viterbi(forest), next_rules)
 
