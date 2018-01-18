@@ -438,7 +438,7 @@ def viterbi(chart):
     ant = {}
 
     # Find maximum weight
-    def visit(u):
+    def visit(u, clo):
         if u not in chart:
             return bigfloat.bigfloat(0.)
         if u in weight:
@@ -449,10 +449,11 @@ def viterbi(chart):
             if e.h[0] != u: continue
             w = bigfloat.bigfloat(1.)
             for v in e.h[1:]:
-                # print (v)
-                if v == u :
+                #print (v)
+                if v in clo :
                     continue
-                w *= visit(v)
+                clo.add(v)
+                w *= visit(v, clo.copy())
             if w_max is None or w > w_max:
                 w_max = w
                 e_max = e
@@ -460,7 +461,7 @@ def viterbi(chart):
         ant[u] = e_max
         return w_max
 
-    visit(Goal())
+    visit(Goal(), set())
 
     # Reconstruct derivation
     deriv = networkx.DiGraph()
