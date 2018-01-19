@@ -498,20 +498,14 @@ def main():
     print('new Graph:')
     import hypergraphs
     print ('Edges: ', len(hypergraphs.edges(new_g)))
+    h_prime = nx.DiGraph()
     for e in hypergraphs.edges(new_g):
         print(e)
+        h_prime.add_edge(e.h[0], e.h[1])
 
+    #TODO: Satyaki
+    #cmp(h_prime, some_h)
 
-    #p.derive(p.viterbi(forest), next_rules)
-
-    #i = 0
-    #print('Rule Ordering')
-    #for rule in p.get_rule_list(p.viterbi(forest)):
-    #    print(rule.rule.id, end=', ')
-
-    #print()
-
-    #p.get_rule_list(p.viterbi(forest))
     print('End in', time() - start, 'sec!!')
 
 if __name__ == "__main__":
