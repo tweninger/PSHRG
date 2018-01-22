@@ -303,6 +303,7 @@ def external_rage(G,netname):
     import subprocess
     import networkx as nx
     import  pandas as pd
+    import platform
     from os.path import expanduser
 
     G = nx.Graph(G)
@@ -314,8 +315,10 @@ def external_rage(G,netname):
     with open(tmp_file, 'w') as tmp:
         for e in G.edges_iter():
             tmp.write(str(int(e[0])+1) + ' ' + str(int(e[1])+1) + '\n')
-
-    args = ("./RAGE", tmp_file)
+    if 'Windows' in platform.platform():
+        args = ("./RAGE_windows.exe", tmp_file)
+    else:
+        args = ("./RAGE", tmp_file)
 
     popen = subprocess.Popen(args, stdout=subprocess.PIPE)
     popen.wait()
