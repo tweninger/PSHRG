@@ -13,6 +13,9 @@ import grammar
 import graph_parser as p
 import graph_sampler as gs
 import tree_decomposition as td
+from collections import Counter
+import numpy as np
+import scipy
 import cProfile
 
 DEBUG = True
@@ -248,10 +251,6 @@ def prune(tree, parent):
     else:
         return (node, children)
 
-
-
-
-
 def powerlaw_cluster_graph(n, m, p, seed=None):
     from networkx import random_graphs as rg
     if m < 1 or n < m:
@@ -265,7 +264,7 @@ def powerlaw_cluster_graph(n, m, p, seed=None):
         random.seed(seed)
 
     G=rg.empty_graph(m, create_using=nx.DiGraph()) # add m initial nodes (m0 in barabasi-speak)
-    G.name="Powerlaw-Cluster Graph"
+    G.name="PL {} {} {}".format(n, m, p)
     repeated_nodes=G.nodes()  # list of existing nodes to sample from
                            # with nodes repeated once for each adjacent edge
     source=m               # next node is m
@@ -299,16 +298,120 @@ def powerlaw_cluster_graph(n, m, p, seed=None):
         source += 1
     return G
 
-def main():
-    # Example From PAMI Paper
-    # Graph is undirected
 
-    ###################################
+def external_rage(G,netname):
+    import subprocess
+    import networkx as nx
+    import  pandas as pd
+    from os.path import expanduser
+
+    G = nx.Graph(G)
+    # giant_nodes = max(nx.connected_component_subgraphs(G), key=len)
+    giant_nodes = sorted(nx.connected_component_subgraphs(G), key=len, reverse=True)
+
+    G = nx.subgraph(G, giant_nodes[0])
+    tmp_file = "tmp_{}.txt".format(netname)
+    with open(tmp_file, 'w') as tmp:
+        for e in G.edges_iter():
+            tmp.write(str(int(e[0])+1) + ' ' + str(int(e[1])+1) + '\n')
+
+    args = ("./RAGE", tmp_file)
+
+    popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+    popen.wait()
+    output = popen.stdout.read()
+
+    # Results are hardcoded in the exe
+    df = pd.read_csv('./Results/UNDIR_RESULTS_tmp_{}.csv'.format(netname),
+                     header=0, sep=',', index_col=0)
+    df = df.drop('ASType', 1)
+    return df
+
+def tijana_eval_compute_gcm(G_df):
+    import scipy.stats
+
+    l = len(G_df.columns)
+    gcm = np.zeros((l, l))
+    i = 0
+    for column_G in G_df:
+        j = 0
+        for column_H in G_df:
+            gcm[i, j] = scipy.stats.spearmanr(G_df[column_G].tolist(), G_df[column_H].tolist())[0]
+            if scipy.isnan(gcm[i, j]):
+                gcm[i, j] = 1.0
+            j += 1
+        i += 1
+    return gcm
+
+def tijana_eval_compute_gcd(gcm_g, gcm_h):
+    import math
+
+    if len(gcm_h) != len(gcm_g):
+        raise "Graphs must be same size"
+    s = 0
+    for i in range(0, len(gcm_g)):
+        for j in range(i, len(gcm_h)):
+            s += math.pow((gcm_g[i, j] - gcm_h[i, j]), 2)
+
+    gcd = math.sqrt(s)
+    return gcd
+
+def KL_dist(ds1, ds2):
+    v1 = []
+    v2 = []
+    for d in sorted(ds1.keys()):
+        if d in ds2:
+            v1.append(ds1[d])
+            v2.append(ds2[d])
+    if len(v1) == 0:
+        return None
+    return round(scipy.stats.entropy(v1, v2), 3)
+
+def GCD(h1, h2):
+    df_g = external_rage(h1, 'Orig')
+    df_h = external_rage(h2, 'Test')
+    gcm_g = tijana_eval_compute_gcm(df_g)
+    gcm_h = tijana_eval_compute_gcm(df_h)
+    gcd = tijana_eval_compute_gcd(gcm_g, gcm_h)
+    return round(gcd, 3)
+
+def cmp(h1, h2):
+    """
+    Compares two graphs h1 and h2
+    """
+    print('\n------Statistics-------\n')
+    print('n1 = {}, n2 = {}'.format(h1.order(), h2.order()))
+    print('m1 = {}, m2 = {}'.format(h1.size(), h2.size()))
+
+    print('\nGCD: ', GCD(h1, h2))
+
+    print('\nKL stats\n')
+    # In-degree
+    in1 = Counter(h1.in_degree().values())
+    in2 = Counter(h2.in_degree().values())
+    print('In-degree:', KL_dist(in1, in2))
+
+    # Out-degree
+    out1 = Counter(h1.out_degree().values())
+    out2 = Counter(h2.out_degree().values())
+    print('Out-degree:', KL_dist(out1, out2))
+
+    # PageRank
+    pr1 = Counter(map(lambda x: round(x, 3), nx.pagerank_numpy(h1).values()))
+    pr2 = Counter(map(lambda x: round(x, 3), nx.pagerank_numpy(h2).values()))
+    print('PageRank: ', KL_dist(pr1, pr2))
+
+    print('-------------------------')
+
+    return
+
+def main():
+
     add_edge_events = {}
     del_edge_events = {}
 
-    g = powerlaw_cluster_graph(7,2,.2)
-
+    g = powerlaw_cluster_graph(8,2,.2)
+    print(g.name)
     #print (g.edges(data=True))
     #print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
     #print (g.size())
@@ -352,31 +455,34 @@ def main():
 
     # filename = './test/pickles/dutch/23'
     #filename = './test/pickles/dutch/3'
-    #filename = './test/pickles/dutch/full'
-    
-    #add_edge_filename = filename + '_add_edge.pkl'
-    #with open(add_edge_filename, 'rb') as f:
+    # filename = './test/pickles/dutch/full'
+    # filename = './test/pickles/classrooms/'
+    # #
+    # add_edge_filename = filename + 'add.pkl'
+    # with open(add_edge_filename, 'rb') as f:
     #    add_edge_events = pickle.load(f)
-
-    #del_edge_filename = filename + '_del_edge.pkl'
-    #with open(del_edge_filename, 'rb') as f:
+    # #
+    # del_edge_filename = filename + 'del.pkl'
+    # with open(del_edge_filename, 'rb') as f:
     #    del_edge_events = pickle.load(f)
     #############
     print('Loading done!', file=sys.stderr)
 
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
+
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
 
     print(add_edge_events)
 
-    add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
-    #add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
-    #add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
+    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
+    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
+    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
+    add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
 
     shrg_rules = {}
     i=0
-    for t in events:
+    for t in events[: -1]:
         decomp_time = time()
 
         if t in add_edge_events:
@@ -396,33 +502,17 @@ def main():
         g_union = union_graph(g_prev, g_next)
         tree_decomp_l = tree_decomposition(g_union)
 
-
         i += 1
-        #if i < len(events)-2:
-            #continue
-
-        print (tree_decomp_l[0])
 
         tree_decomp = tree_decomp_l[0]
         tree_decomp = prune(tree_decomp, frozenset())
         tree_decomp = binarize(tree_decomp)
         tree_decomp = prune(tree_decomp, frozenset())
 
-        print(tree_decomp)
-        # print_tree_decomp(tree_decomp)
-        # 
-
         td.new_visit(tree_decomp, g_prev, g_next, shrg_rules, i)
         g_prev = g_next.copy()
         print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=sys.stderr)
 
-
-
-    DEBUG = False
-    # if DEBUG: print
-    # if DEBUG: # print"--------------------"
-    # if DEBUG: # print"- Production Rules -"
-    # if DEBUG: # print"--------------------"
 
     prev_rules = []
     next_rules = []
@@ -439,11 +529,6 @@ def main():
                 for n in rule_tuple[0].rhs.nodes(data=True):
                     if 'external' not in n[1] and not isinstance(n[1]['label'], grammar.Nonterminal):
                         anchor_candidates.append( (n[1]['oid'], rule_tuple) )
-
-            #if nonterm and rule_tuple[1].iso == False:
-            #    for n in rule_tuple[0].rhs.nodes(data=True):
-            #        if not isinstance(n[1]['label'], grammar.Nonterminal):
-            #            print('Candidates: ', rule_tuple)
 
     print('Number of Anchors', len(anchor_candidates))
     anchors = random.sample(anchor_candidates, len(anchor_candidates))
@@ -479,9 +564,6 @@ def main():
             rule_tuple[0].weight /= float(s)
             prev_rules.append(rule_tuple[0])
 
-
-
-
     #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
@@ -497,17 +579,26 @@ def main():
     print()
     print('new Graph:')
     import hypergraphs
-    print ('Edges: ', len(hypergraphs.edges(new_g)))
+    # print ('Edges: ', len(hypergraphs.edges(new_g)))
     h_prime = nx.DiGraph()
     for e in hypergraphs.edges(new_g):
-        print(e)
+        # print(e)
         h_prime.add_edge(e.h[0], e.h[1])
 
-    #TODO: Satyaki
-    #cmp(h_prime, some_h)
+    # TODO: Satyaki
+    h_true = nx.DiGraph()
+    for t in events:
+        if t in add_edge_events:
+            for u, v in add_edge_events[t]:
+                h_true.add_edge(u, v)
+        if t in del_edge_events:
+            for u, v in del_edge_events[t]:
+                h_true.remove_edge(u, v)
+
+    cmp(h_prime, h_true)
 
     print('End in', time() - start, 'sec!!')
 
 if __name__ == "__main__":
+    np.seterr(all='ignore')
     main()
-    #cProfile.runctx('main()', globals(), locals())
