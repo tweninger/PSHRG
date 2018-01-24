@@ -15,7 +15,7 @@ import graph_sampler as gs
 import tree_decomposition as td
 from collections import Counter
 import numpy as np
-import scipy
+# import scipy
 import cProfile
 
 DEBUG = True
@@ -327,6 +327,7 @@ def external_rage(G,netname):
     df = df.drop('ASType', 1)
     return df
 
+
 def tijana_eval_compute_gcm(G_df):
     import scipy.stats
 
@@ -343,6 +344,7 @@ def tijana_eval_compute_gcm(G_df):
         i += 1
     return gcm
 
+
 def tijana_eval_compute_gcd(gcm_g, gcm_h):
     import math
 
@@ -356,16 +358,21 @@ def tijana_eval_compute_gcd(gcm_g, gcm_h):
     gcd = math.sqrt(s)
     return gcd
 
-def KL_dist(ds1, ds2):
-    v1 = []
-    v2 = []
-    for d in sorted(ds1.keys()):
-        if d in ds2:
-            v1.append(ds1[d])
-            v2.append(ds2[d])
-    if len(v1) == 0:
-        return None
-    return round(scipy.stats.entropy(v1, v2), 3)
+
+def cdf_sum(data1, data2):
+    data1, data2 = map(np.asarray, (data1, data2))
+    n1 = data1.shape[0]
+    n2 = data2.shape[0]
+    n1 = len(data1)
+    n2 = len(data2)
+    data1 = np.sort(data1)
+    data2 = np.sort(data2)
+    data_all = np.concatenate([data1,data2])
+    cdf1 = np.searchsorted(data1,data_all,side='right')/(1.0*n1)
+    cdf2 = (np.searchsorted(data2,data_all,side='right'))/(1.0*n2)
+    d = np.sum(np.absolute(cdf1-cdf2))
+    return round(d, 3)
+
 
 def GCD(h1, h2):
     df_g = external_rage(h1, 'Orig')
@@ -374,6 +381,7 @@ def GCD(h1, h2):
     gcm_h = tijana_eval_compute_gcm(df_h)
     gcd = tijana_eval_compute_gcd(gcm_g, gcm_h)
     return round(gcd, 3)
+
 
 def cmp(h1, h2):
     """
@@ -385,25 +393,24 @@ def cmp(h1, h2):
 
     print('\nGCD: ', GCD(h1, h2))
 
-    print('\nKL stats\n')
+    print('\nCDF sum stats\n')
     # In-degree
-    in1 = Counter(h1.in_degree().values())
-    in2 = Counter(h2.in_degree().values())
-    print('In-degree:', KL_dist(in1, in2))
+    in1 = h1.in_degree().values()
+    in2 = h2.in_degree().values()
+    print('In-degree:', cdf_sum(in1, in2))
 
     # Out-degree
-    out1 = Counter(h1.out_degree().values())
-    out2 = Counter(h2.out_degree().values())
-    print('Out-degree:', KL_dist(out1, out2))
+    out1 = h1.out_degree().values()
+    out2 = h2.out_degree().values()
+    print('Out-degree:', cdf_sum(out1, out2))
 
     # PageRank
-    pr1 = Counter(map(lambda x: round(x, 3), nx.pagerank_numpy(h1).values()))
-    pr2 = Counter(map(lambda x: round(x, 3), nx.pagerank_numpy(h2).values()))
-    print('PageRank: ', KL_dist(pr1, pr2))
-
+    pr1 = map(lambda x: round(x, 3), nx.pagerank_numpy(h1).values())
+    pr2 = map(lambda x: round(x, 3), nx.pagerank_numpy(h2).values())
+    print('PageRank: ', cdf_sum(pr1, pr2))
     print('-------------------------')
 
-    return
+
 
 def main():
 
@@ -412,9 +419,6 @@ def main():
 
     g = powerlaw_cluster_graph(8,2,.2)
     print(g.name)
-    #print (g.edges(data=True))
-    #print (sorted(g.edges(data=True), key=lambda x: x[2]['t']))
-    #print (g.size())
 
     for e in g.edges_iter(data=True):
         if e[2]['t'] not in add_edge_events:
@@ -457,11 +461,13 @@ def main():
     #filename = './test/pickles/dutch/3'
     # filename = './test/pickles/dutch/full'
     # filename = './test/pickles/classrooms/'
-    # #
+    # filename = './test/pickles/hp/'
+    # filename = './test/pickles/samson/'
+
     # add_edge_filename = filename + 'add.pkl'
     # with open(add_edge_filename, 'rb') as f:
     #    add_edge_events = pickle.load(f)
-    # #
+    # # #
     # del_edge_filename = filename + 'del.pkl'
     # with open(del_edge_filename, 'rb') as f:
     #    del_edge_events = pickle.load(f)
@@ -478,7 +484,7 @@ def main():
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
-    add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
+    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
 
     shrg_rules = {}
     i=0
@@ -570,6 +576,8 @@ def main():
     print('Parse start, time elapsed: {} sec'.format(time() - start))
 
     print('Number of Rules ', len(prev_rules))
+
+    # print(shrg_rules)
 
     forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start))
