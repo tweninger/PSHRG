@@ -438,8 +438,8 @@ def exteRnal(add_edge_events):
     r_comms = []
     # r_comms.append("install.packages(c('statnet'), repos='http://cran.us.r-project.org', dependencies=T)")
     r_comms.append("""if(!require(statnet)){
-    install.packages('statnet')
-    library(somepackage)}""")
+    install.packages('statnet', repos='http://cran.us.r-project.org', dependencies=T)
+    library(statnet)}""")
     # r_comms.append("library(statnet)")
     r_comms.append('{} <- network.initialize(0)'.format(name))
     r_comms.append('add.vertices.active({}, 2, onset=0, terminus={})'.format(name, max_t + 1))
