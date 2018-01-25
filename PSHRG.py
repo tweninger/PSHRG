@@ -315,6 +315,7 @@ def external_rage(G,netname):
     with open(tmp_file, 'w') as tmp:
         for e in G.edges_iter():
             tmp.write(str(int(e[0])+1) + ' ' + str(int(e[1])+1) + '\n')
+
     if 'Windows' in platform.platform():
         args = ("./RAGE_windows.exe", tmp_file)
     else:
@@ -435,7 +436,11 @@ def exteRnal(add_edge_events):
     max_t = max(add_edge_events.keys())
     name = 'pl{}'.format(max_t + 3)
     r_comms = []
-    r_comms.append("install.packages('littler')\nlibrary(statnet)")
+    # r_comms.append("install.packages(c('statnet'), repos='http://cran.us.r-project.org', dependencies=T)")
+    r_comms.append("""if(!require(statnet)){
+    install.packages('statnet')
+    library(somepackage)}""")
+    # r_comms.append("library(statnet)")
     r_comms.append('{} <- network.initialize(0)'.format(name))
     r_comms.append('add.vertices.active({}, 2, onset=0, terminus={})'.format(name, max_t + 1))
 
@@ -464,7 +469,12 @@ def exteRnal(add_edge_events):
     r_comms.append("write.table(mat, file='{}_stergm.txt', sep=' ', quote=F, col.names=F, row.names=F)".format(name))
     print('\n'.join(r_comms), file=open('{}_script.r'.format(name), 'w'))
 
-    exit_code = subprocess.call("cat {}_script.r | r --no-save".format(name), shell=True)
+    # popen = subprocess.Popen("cat {}_script.r | r --no-save".format(name), stdout=subprocess.PIPE)
+    # popen.wait()
+    exit_code = subprocess.call("cat {}_script.r | R --no-save".format(name), shell=True)
+
+    # In case of error, execute 'sudo conda install -c r r-irkernel zeromq' and rerun this code
+
     if exit_code != 0:
         print('Error running STERGM')
         return None
@@ -475,7 +485,7 @@ def main():
     add_edge_events = {}
     del_edge_events = {}
 
-    g = powerlaw_cluster_graph(8,2,.2)
+    g = powerlaw_cluster_graph(10,2,.2)
     print(g.name)
 
     for e in g.edges_iter(data=True):
@@ -537,16 +547,20 @@ def main():
 
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 1), (5, 4)], 4: [(6, 0), (6, 1)], 5: [(7, 0), (7, 2)], 6: [(8, 0), (8, 1)], 7: [(9, 5), (9, 4)]}
 
-    events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
+
 
     # print(add_edge_events)
 
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
-    add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
+    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
+
+
+    events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
 
     name = exteRnal(add_edge_events)
+    exit(1)
 
     shrg_rules = {}
     i=0
