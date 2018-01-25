@@ -386,37 +386,92 @@ def GCD(h1, h2):
     return round(gcd, 3)
 
 
-def cmp(h1, h2):
-    """
-    Compares two graphs h1 and h2
-    """
+def cmp(h_true, h_shrg, h_ster=nx.empty_graph(1, create_using=nx.DiGraph())):
     print('\n------Statistics-------\n')
-    print('n1 = {}, n2 = {}'.format(h1.order(), h2.order()))
-    print('m1 = {}, m2 = {}'.format(h1.size(), h2.size()))
+    print('n_true = {}, n_shrg = {}, n_ster = {}'.format(h_true.order(), h_shrg.order(), h_ster.order()))
+    print('m_true = {}, m_shrg = {}, m_ster = {}'.format(h_true.size(), h_shrg.size(), h_ster.size()))
 
-    print('\nGCD: ', GCD(h1, h2))
+    print('\nGCD(true, shrg): ', GCD(h_true, h_shrg))
+    print('\nGCD(true, ster): ', GCD(h_true, h_ster))
+    print('\nGCD(shrg, ster): ', GCD(h_shrg, h_ster))
 
     print('\nCDF sum stats\n')
     # In-degree
-    in1 = h1.in_degree().values()
-    in2 = h2.in_degree().values()
-    print('In-degree:', cdf_sum(in1, in2))
+    in_true = h_true.in_degree().values()
+    in_shrg = h_shrg.in_degree().values()
+    in_ster = h_ster.in_degree().values()
+
+    print('In-degree:')
+    print('\t(true, shrg):', cdf_sum(in_true, in_shrg))
+    print('\t(true, ster):', cdf_sum(in_true, in_ster))
+    print('\t(shrg, ster):', cdf_sum(in_shrg, in_ster))
 
     # Out-degree
-    out1 = h1.out_degree().values()
-    out2 = h2.out_degree().values()
-    print('Out-degree:', cdf_sum(out1, out2))
+    out_true = h_true.out_degree().values()
+    out_shrg = h_shrg.out_degree().values()
+    out_ster = h_ster.out_degree().values()
+
+    print('Out-degree:')
+    print('\t(true, shrg):', cdf_sum(out_true, out_shrg))
+    print('\t(true, ster):', cdf_sum(out_true, out_ster))
+    print('\t(shrg, ster):', cdf_sum(out_shrg, out_ster))
 
     # PageRank
-    pr1 = map(lambda x: round(x, 3), nx.pagerank_numpy(h1).values())
-    pr2 = map(lambda x: round(x, 3), nx.pagerank_numpy(h2).values())
-    print('PageRank: ', cdf_sum(pr1, pr2))
+    pr_true = map(lambda x: round(x, 3), nx.pagerank_numpy(h_true).values())
+    pr_shrg = map(lambda x: round(x, 3), nx.pagerank_numpy(h_shrg).values())
+    pr_ster = map(lambda x: round(x, 3), nx.pagerank_numpy(h_ster).values())
+
+    print(pr_true, pr_shrg, pr_ster)
+    print('PageRank:')
+    print('\t(true, shrg):', cdf_sum(pr_true, pr_shrg))
+    print('\t(true, ster):', cdf_sum(pr_true, pr_ster))
+    print('\t(shrg, ster):', cdf_sum(pr_shrg, pr_ster))
     print('-------------------------')
 
 
+def exteRnal(add_edge_events):
+    import subprocess
+
+    max_t = max(add_edge_events.keys())
+    name = 'pl{}'.format(max_t + 3)
+    r_comms = []
+    r_comms.append("install.packages('littler')\nlibrary(statnet)")
+    r_comms.append('{} <- network.initialize(0)'.format(name))
+    r_comms.append('add.vertices.active({}, 2, onset=0, terminus={})'.format(name, max_t + 1))
+
+    max_t = max(add_edge_events.keys())
+    for t in sorted(add_edge_events.keys()):
+        r_comms.append('\nadd.vertices.active({}, 1, onset={}, terminus={}) #{}'.format(name, t, max_t + 1, t + 3))
+        for u, v in add_edge_events[t]:
+            r_comms.append(
+                'add.edges.active({}, tail={}, head={}, onset={}, terminus={})'.format(name, u + 1, v + 1, t,
+                                                                                       max_t + 1))
+
+    r_comms.append('\n#plots\npar(mfrow=c(2, 2))')
+    r_comms.append("plot({}, main='whole graph', displaylabels=T)".format(name))
+    for t in sorted(add_edge_events.keys()):
+        r_comms.append("plot(network.extract({}, at={}), main='t={}', displaylabels=T)".format(name, t, t))
+
+    r_comms.append("""\n{}.fit <- stergm({}, 
+                       formation=~edges+gwesp(0,fixed=T),
+                       dissolution=~edges,
+                       estimate='CMLE',
+                       times=0:{},
+                       verbose=T)""".format(name, name, max_t - 1))
+
+    r_comms.append("\n{}.sim <- simulate.stergm({}.fit, nsim=1, nw.start={})".format(name, name, max_t))
+    r_comms.append("mat <- as.matrix({}.sim, matrix.type='edgelist')".format(name))
+    r_comms.append("write.table(mat, file='{}_stergm.txt', sep=' ', quote=F, col.names=F, row.names=F)".format(name))
+    print('\n'.join(r_comms), file=open('{}_script.r'.format(name), 'w'))
+
+    exit_code = subprocess.call("cat {}_script.r | r --no-save".format(name), shell=True)
+    if exit_code != 0:
+        print('Error running STERGM')
+        return None
+    return name
+
 
 def main():
-
     add_edge_events = {}
     del_edge_events = {}
 
@@ -480,14 +535,18 @@ def main():
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
 
+    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 1), (5, 4)], 4: [(6, 0), (6, 1)], 5: [(7, 0), (7, 2)], 6: [(8, 0), (8, 1)], 7: [(9, 5), (9, 4)]}
+
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
 
-    print(add_edge_events)
+    # print(add_edge_events)
 
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
     # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
-    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
+    add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
+
+    name = exteRnal(add_edge_events)
 
     shrg_rules = {}
     i=0
@@ -591,10 +650,10 @@ def main():
     print('new Graph:')
     import hypergraphs
     # print ('Edges: ', len(hypergraphs.edges(new_g)))
-    h_prime = nx.DiGraph()
+    h_shrg = nx.DiGraph()
     for e in hypergraphs.edges(new_g):
         # print(e)
-        h_prime.add_edge(e.h[0], e.h[1])
+        h_shrg.add_edge(e.h[0], e.h[1])
 
     # TODO: Satyaki
     h_true = nx.DiGraph()
@@ -606,7 +665,12 @@ def main():
             for u, v in del_edge_events[t]:
                 h_true.remove_edge(u, v)
 
-    cmp(h_prime, h_true)
+    if name is not None:
+        h_ster = nx.read_edgelist('{}_stergm.txt', create_using=nx.DiGraph(), nodetype=int)
+        cmp(h_true=h_true, h_shrg=h_shrg, h_ster=h_ster)
+    else:
+        cmp(h_true=h_true, h_shrg=h_shrg)
+
 
     print('End in', time() - start, 'sec!!')
 
