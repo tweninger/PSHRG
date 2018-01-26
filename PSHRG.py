@@ -211,8 +211,6 @@ def union_graph(g_prev, g_next):
     return g_union
 
 
-
-
 def binarize(tree):
     (node, children) = tree
     children = [binarize(child) for child in children]
@@ -304,7 +302,6 @@ def external_rage(G,netname):
     import networkx as nx
     import  pandas as pd
     import platform
-    from os.path import expanduser
 
     G = nx.Graph(G)
     # giant_nodes = max(nx.connected_component_subgraphs(G), key=len)
@@ -390,6 +387,9 @@ def GCD(h1, h2):
 
 
 def cmp(h_true, h_shrg, h_ster=nx.empty_graph(1, create_using=nx.DiGraph())):
+
+    # might want to change to a pair of graphs H0 and H1.
+    
     print('\n------Statistics-------\n')
     print('n_true = {}, n_shrg = {}, n_ster = {}'.format(h_true.order(), h_shrg.order(), h_ster.order()))
     print('m_true = {}, m_shrg = {}, m_ster = {}'.format(h_true.size(), h_shrg.size(), h_ster.size()))
@@ -433,6 +433,9 @@ def cmp(h_true, h_shrg, h_ster=nx.empty_graph(1, create_using=nx.DiGraph())):
 
 
 def exteRnal(add_edge_events):
+    """
+    Works only for add_edge_events
+    """
     import subprocess
 
     max_t = max(add_edge_events.keys())
@@ -471,8 +474,6 @@ def exteRnal(add_edge_events):
     r_comms.append("write.table(mat, file='{}_stergm.txt', sep=' ', quote=F, col.names=F, row.names=F)".format(name))
     print('\n'.join(r_comms), file=open('{}_script.r'.format(name), 'w'))
 
-    # popen = subprocess.Popen("cat {}_script.r | r --no-save".format(name), stdout=subprocess.PIPE)
-    # popen.wait()
     exit_code = subprocess.call("cat {}_script.r | R --no-save".format(name), shell=True)
 
     # In case of error, execute 'sudo conda install -c r r-irkernel zeromq' and rerun this code
@@ -483,43 +484,21 @@ def exteRnal(add_edge_events):
     return name
 
 
-def main():
-    add_edge_events = {}
+def main(add_edge_events={}):
+    # add_edge_events = {}
     del_edge_events = {}
 
-    g = powerlaw_cluster_graph(8, 2, .2)
-    print(g.name)
-
-    for e in g.edges_iter(data=True):
-        if e[2]['t'] not in add_edge_events:
-            add_edge_events[e[2]['t']] = [(e[0], e[1])]
-        else:
-            add_edge_events[e[2]['t']].append( (e[0], e[1]) )
-
-
-    #exit()
-    #add_edge_events[1] = [(1, 2), (2, 3), (1,3)]
-
-    #add_edge_events[0] = [(2, 0), (2, 1)]
-    #add_edge_events[1] = [(3, 0), (3, 2), (4, 0), (4, 1)]
-    #add_edge_events[2] = [(5, 0), (5, 2)]
-    #add_edge_events[3] = [(6, 0), (6, 3)]
-
-    #del_edge_events[2] = [(2, 0)]
-    #add_edge_events[5] = [ ]
-    #add_edge_events[6] = [ ]
-    #add_edge_events[9] = [(11, 1), (11, 2), ]
-
-    #add_edge_events = {0: [(0, 1), (0, 3), (1, 2), (2, 3)], 1: [(2, 4), (3, 5), (4, 5)], 2: [(4, 6), (5, 7), (6, 7)],
-    # 3: [(6, 8), (7, 9), (8, 9)]}
-
-
-    #add_edge_events[0] = [(0, 1), (1, 2), ]
-    #add_edge_events[1] = [(2, 3), (3, 4), ]
-    #add_edge_events[2] = [(4, 5), (5, 6), ]
-    #add_edge_events[3] = [(6, 7), (7, 8), ]
-
-    # del_edge_events[1] = [(1, 3)]
+    # g = powerlaw_cluster_graph(9, 2, 0)
+    # print(g.name)
+    # #
+    # for e in g.edges_iter(data=True):
+    #     if e[2]['t'] not in add_edge_events:
+    #         add_edge_events[e[2]['t']] = [(e[0], e[1])]
+    #     else:
+    #         add_edge_events[e[2]['t']].append((e[0], e[1]))
+    #
+    # print(str(add_edge_events), file=open('./dumps/pl9.txt', 'a'))
+    # return
 
     ### Read pickled add and del_edge events ##########
     start = time()
@@ -547,18 +526,6 @@ def main():
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
 
-    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 1), (5, 4)], 4: [(6, 0), (6, 1)], 5: [(7, 0), (7, 2)], 6: [(8, 0), (8, 1)], 7: [(9, 5), (9, 4)]}
-
-
-
-    # print(add_edge_events)
-
-    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 1), (4, 2)], 3: [(5, 0), (5, 1)], 4: [(6, 1), (6, 2)]}
-    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 0), (4, 2)], 3: [(5, 0), (5, 2)], 4: [(6, 0), (6, 2)]}
-    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 0), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 3)], 4: [(6, 0), (6, 4)]}
-    # add_edge_events = {0: [(2, 0), (2, 1)], 1: [(3, 1), (3, 2)], 2: [(4, 2), (4, 3)], 3: [(5, 0), (5, 2)], 4: [(6, 2), (6, 3)], 5: [(7, 2), (7, 5)]}
-
-
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
     
     name = None
@@ -567,7 +534,7 @@ def main():
 
     shrg_rules = {}
     i=0
-    for t in events[: -1]:
+    for t in events[: -1]: # go up to the second last timestamp
         decomp_time = time()
 
         if t in add_edge_events:
@@ -597,7 +564,6 @@ def main():
         td.new_visit(tree_decomp, g_prev, g_next, shrg_rules, i)
         g_prev = g_next.copy()
         print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=sys.stderr)
-
 
     prev_rules = []
     next_rules = []
@@ -656,8 +622,6 @@ def main():
 
     print('Number of Rules ', len(prev_rules))
 
-    # print(shrg_rules)
-
     forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start))
     # print'start deriving'
@@ -666,36 +630,70 @@ def main():
         new_g = p.derive(p.viterbi(forest), next_rules)
     except KeyError:
         print('Goal error!', file=sys.stderr)
-        print('{}\n'.format(add_edge_events), file=open('./dumps/goal_error.txt', 'a'))
-        exit(1)
+        # print('End in', time() - start, 'sec!!')
+        return 'g', None, shrg_rules, time() - start
 
-    print()
     print('new Graph:')
     import hypergraphs
-    # print ('Edges: ', len(hypergraphs.edges(new_g)))
     h_shrg = nx.DiGraph()
     for e in hypergraphs.edges(new_g):
-        # print(e)
         h_shrg.add_edge(e.h[0], e.h[1])
 
-    # TODO: Satyaki
-    h_true = nx.DiGraph()
-    for t in events:
-        if t in add_edge_events:
-            for u, v in add_edge_events[t]:
-                h_true.add_edge(u, v)
-        if t in del_edge_events:
-            for u, v in del_edge_events[t]:
-                h_true.remove_edge(u, v)
+    return 'o', h_shrg, shrg_rules, time() - start # Okay
 
-    if name is not None:
-        h_ster = nx.read_edgelist('{}_stergm.txt', create_using=nx.DiGraph(), nodetype=int)
-        cmp(h_true=h_true, h_shrg=h_shrg, h_ster=h_ster)
-    else:
-        cmp(h_true=h_true, h_shrg=h_shrg)
-
-    print('End in', time() - start, 'sec!!')
+    # h_true = nx.DiGraph()
+    # for t in events:
+    #     if t in add_edge_events:
+    #         for u, v in add_edge_events[t]:
+    #             h_true.add_edge(u, v)
+    #     if t in del_edge_events:
+    #         for u, v in del_edge_events[t]:
+    #             h_true.remove_edge(u, v)
+    #
+    # if name is not None:
+    #     h_ster = nx.read_edgelist('{}_stergm.txt', create_using=nx.DiGraph(), nodetype=int)
+    #     cmp(h_true=h_true, h_shrg=h_shrg, h_ster=h_ster)
+    # else:
+    #     cmp(h_true=h_true, h_shrg=h_shrg)
 
 if __name__ == "__main__":
+    import ast
     np.seterr(all='ignore')
-    main()
+
+
+    goal_count = 0
+    ok_count = 0
+
+    add_edges_list = []
+    add_edges_filename = './dumps/pl9.txt'
+
+    with open(add_edges_filename) as f:
+        for line in f:
+            add_edges = ast.literal_eval(line.strip())
+            add_edges_list.append(add_edges)
+
+    for count, add_edges in enumerate(add_edges_list):
+        print('\n\n', count, file=sys.stderr)
+        status, graph, shrg_rules, time_ = main(add_edges)
+        pickle_path = ''
+        ae_path = ''
+
+        if status == 'g': # goal error
+            goal_count += 1
+            ae_path = './dumps/new/fail/pl9/fail_add_edges.txt'
+            pickle_path = './dumps/new/fail/pl9/shrg_{}.pkl'.format(goal_count)
+
+        elif status == 'o': # OK
+            ok_count += 1
+            pickle_path = './dumps/new/ok/pl9/shrg_{}.pkl'.format(ok_count)
+            ae_path = './dumps/new/ok/pl9/ok_add_edges.txt'
+            nx.write_edgelist(graph, './dumps/new/ok/pl9/shrg_{}_edges'.format(ok_count), data=False)
+
+        with open(pickle_path, 'wb') as f:
+            pickle.dump(shrg_rules, f)
+
+        print(str(add_edges), file=open(ae_path, 'a'))
+
+        with open('./dumps/new/overall_stats_9.txt', 'a') as f:
+            f.write('{} {} {} secs\n'.format(count+1, status, time_))
+
