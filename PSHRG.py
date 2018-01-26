@@ -318,6 +318,8 @@ def external_rage(G,netname):
 
     if 'Windows' in platform.platform():
         args = ("./RAGE_windows.exe", tmp_file)
+    elif 'Linux' in platform.platform():
+        args = ('./RAGE_linux', tmp_file)
     else:
         args = ("./RAGE", tmp_file)
 
@@ -485,7 +487,7 @@ def main():
     add_edge_events = {}
     del_edge_events = {}
 
-    g = powerlaw_cluster_graph(10,2,.2)
+    g = powerlaw_cluster_graph(8, 2, .2)
     print(g.name)
 
     for e in g.edges_iter(data=True):
@@ -558,9 +560,10 @@ def main():
 
 
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
-
-    name = exteRnal(add_edge_events)
-    exit(1)
+    
+    name = None
+    # name = exteRnal(add_edge_events)
+    # exit(1)
 
     shrg_rules = {}
     i=0
@@ -659,7 +662,13 @@ def main():
     print('Parse end, time elapsed: {} sec'.format(time() - start))
     # print'start deriving'
 
-    new_g = p.derive(p.viterbi(forest), next_rules)
+    try:
+        new_g = p.derive(p.viterbi(forest), next_rules)
+    except KeyError:
+        print('Goal error!', file=sys.stderr)
+        print('{}\n'.format(add_edge_events), file=open('./dumps/goal_error.txt', 'a'))
+        exit(1)
+
     print()
     print('new Graph:')
     import hypergraphs
@@ -684,7 +693,6 @@ def main():
         cmp(h_true=h_true, h_shrg=h_shrg, h_ster=h_ster)
     else:
         cmp(h_true=h_true, h_shrg=h_shrg)
-
 
     print('End in', time() - start, 'sec!!')
 
