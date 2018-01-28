@@ -119,7 +119,7 @@ def one_trial(filename, trial):
             continue
 
         # TODO: verify stergm
-        #stergm_graph = PSHRG.exteRnal(add_edge_events)
+        stergm_graph = PSHRG.exteRnal(add_edges)
         true_graph = build_graph(add_edges)
 
         n = graph.number_of_nodes()
@@ -135,6 +135,7 @@ def one_trial(filename, trial):
 
 
 if __name__ == '__main__':
+    np.seterr(all='ignore')
     args = sys.argv[1:]
     try:
         while args[0][0] == '-':

@@ -398,13 +398,13 @@ def cmp(g0, g1, filename=""):
     g1_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g1).values())
 
     with open(filename + "_separate.txt", "w") as cmp_file:
-        cmp_file.write(",{},{}".format(g0.name, g1.name))
-        cmp_file.write("nodes,{},{}".format(g0.order(), g1.order()))
-        cmp_file.write("edges,{},{}".format(g0.size(), g1.size()))
-        cmp_file.write("in-deg,{},{}".format(g0_in, g1_in))
-        cmp_file.write("out-deg,{},{}".format(g0_out, g1_out))
-        cmp_file.write("nodes,{},{}")
-        cmp_file.write("nodes,{},{}")
+        cmp_file.write(",{},{}\n".format(g0.name, g1.name))
+        cmp_file.write("nodes,{},{}\n".format(g0.order(), g1.order()))
+        cmp_file.write("edges,{},{}\n".format(g0.size(), g1.size()))
+        cmp_file.write("in-deg,{},{}\n".format(g0_in, g1_in))
+        cmp_file.write("out-deg,{},{}\n".format(g0_out, g1_out))
+        cmp_file.write("nodes,{},{}\n")
+        cmp_file.write("nodes,{},{}\n")
 
     with open(filename + "_together.txt", "w") as cmp_file:
         cmp_file.write("gcd,cdf-in,cdf-out,pagerank")
