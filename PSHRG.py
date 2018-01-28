@@ -1,21 +1,32 @@
+#!/usr/bin/python2.7
 from __future__ import print_function
 
+import ast
 import os
 import pickle
 import random
 import re
 import sys
 from time import time
+import math
 
-import networkx as nx
+import hypergraphs
 
 import grammar
 import graph_parser as p
 import graph_sampler as gs
 import tree_decomposition as td
+
+import subprocess
+import networkx as nx
+import pandas as pd
+import platform
+import scipy.stats
+
+from networkx import random_graphs as rg
 from collections import Counter
+
 import numpy as np
-# import scipy
 import cProfile
 
 DEBUG = True
@@ -45,8 +56,6 @@ def matcher(lhs, N):
                 m.append((x[i], y))
                 i += 1
             return m
-
-
 
 
 def print_tree_decomp(tree, indent=""):
@@ -250,7 +259,7 @@ def prune(tree, parent):
         return (node, children)
 
 def powerlaw_cluster_graph(n, m, p, seed=None):
-    from networkx import random_graphs as rg
+    p = 0
     if m < 1 or n < m:
         raise nx.NetworkXError(\
               "NetworkXError must have m>1 and m<n, m=%d,n=%d"%(m,n))
@@ -298,10 +307,6 @@ def powerlaw_cluster_graph(n, m, p, seed=None):
 
 
 def external_rage(G,netname):
-    import subprocess
-    import networkx as nx
-    import  pandas as pd
-    import platform
 
     G = nx.Graph(G)
     # giant_nodes = max(nx.connected_component_subgraphs(G), key=len)
@@ -321,6 +326,7 @@ def external_rage(G,netname):
         args = ("./RAGE", tmp_file)
 
     popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+    
     popen.wait()
     output = popen.stdout.read()
 
@@ -332,7 +338,6 @@ def external_rage(G,netname):
 
 
 def tijana_eval_compute_gcm(G_df):
-    import scipy.stats
 
     l = len(G_df.columns)
     gcm = np.zeros((l, l))
@@ -349,7 +354,6 @@ def tijana_eval_compute_gcm(G_df):
 
 
 def tijana_eval_compute_gcd(gcm_g, gcm_h):
-    import math
 
     if len(gcm_h) != len(gcm_g):
         raise "Graphs must be same size"
@@ -385,58 +389,35 @@ def GCD(h1, h2):
     gcd = tijana_eval_compute_gcd(gcm_g, gcm_h)
     return round(gcd, 3)
 
+def cmp(g0, g1, filename=""):
+    g0_in = g0.in_degree().values()
+    g1_in = g1.in_degree().values()
+    g0_out = g0.out_degree().values()
+    g1_out = g1.out_degree().values()
+    g0_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g0).values())
+    g1_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g1).values())
 
-def cmp(h_true, h_shrg, h_ster=nx.empty_graph(1, create_using=nx.DiGraph())):
+    with open(filename + "_separate.txt", "w") as cmp_file:
+        cmp_file.write(",{},{}".format(g0.name, g1.name))
+        cmp_file.write("nodes,{},{}".format(g0.order(), g1.order()))
+        cmp_file.write("edges,{},{}".format(g0.size(), g1.size()))
+        cmp_file.write("in-deg,{},{}".format(g0_in, g1_in))
+        cmp_file.write("out-deg,{},{}".format(g0_out, g1_out))
+        cmp_file.write("nodes,{},{}")
+        cmp_file.write("nodes,{},{}")
 
-    # might want to change to a pair of graphs H0 and H1.
-    
-    print('\n------Statistics-------\n')
-    print('n_true = {}, n_shrg = {}, n_ster = {}'.format(h_true.order(), h_shrg.order(), h_ster.order()))
-    print('m_true = {}, m_shrg = {}, m_ster = {}'.format(h_true.size(), h_shrg.size(), h_ster.size()))
-
-    print('\nGCD(true, shrg): ', GCD(h_true, h_shrg))
-    print('\nGCD(true, ster): ', GCD(h_true, h_ster))
-    print('\nGCD(shrg, ster): ', GCD(h_shrg, h_ster))
-
-    print('\nCDF sum stats\n')
-    # In-degree
-    in_true = h_true.in_degree().values()
-    in_shrg = h_shrg.in_degree().values()
-    in_ster = h_ster.in_degree().values()
-
-    print('In-degree:')
-    print('\t(true, shrg):', cdf_sum(in_true, in_shrg))
-    print('\t(true, ster):', cdf_sum(in_true, in_ster))
-    print('\t(shrg, ster):', cdf_sum(in_shrg, in_ster))
-
-    # Out-degree
-    out_true = h_true.out_degree().values()
-    out_shrg = h_shrg.out_degree().values()
-    out_ster = h_ster.out_degree().values()
-
-    print('Out-degree:')
-    print('\t(true, shrg):', cdf_sum(out_true, out_shrg))
-    print('\t(true, ster):', cdf_sum(out_true, out_ster))
-    print('\t(shrg, ster):', cdf_sum(out_shrg, out_ster))
-
-    # PageRank
-    pr_true = map(lambda x: round(x, 3), nx.pagerank_numpy(h_true).values())
-    pr_shrg = map(lambda x: round(x, 3), nx.pagerank_numpy(h_shrg).values())
-    pr_ster = map(lambda x: round(x, 3), nx.pagerank_numpy(h_ster).values())
-
-    print(pr_true, pr_shrg, pr_ster)
-    print('PageRank:')
-    print('\t(true, shrg):', cdf_sum(pr_true, pr_shrg))
-    print('\t(true, ster):', cdf_sum(pr_true, pr_ster))
-    print('\t(shrg, ster):', cdf_sum(pr_shrg, pr_ster))
-    print('-------------------------')
+    with open(filename + "_together.txt", "w") as cmp_file:
+        cmp_file.write("gcd,cdf-in,cdf-out,pagerank")
+        cmp_file.write("{},{},{},{}".format(GCD(g0, g1),
+                                            cdf_sum(g0_in, g1_in),
+                                            cdf_sum(g0_out, g1_out),
+                                            cdf_sum(g0_page, g1_page)))
 
 
 def exteRnal(add_edge_events):
     """
     Works only for add_edge_events
     """
-    import subprocess
 
     max_t = max(add_edge_events.keys())
     name = 'pl{}'.format(max_t + 3)
@@ -447,6 +428,7 @@ def exteRnal(add_edge_events):
     library(statnet)}""")
     # r_comms.append("library(statnet)")
     r_comms.append('{} <- network.initialize(0)'.format(name))
+
     r_comms.append('add.vertices.active({}, 2, onset=0, terminus={})'.format(name, max_t + 1))
 
     max_t = max(add_edge_events.keys())
@@ -484,44 +466,9 @@ def exteRnal(add_edge_events):
     return name
 
 
-def main(add_edge_events={}):
-    # add_edge_events = {}
-    del_edge_events = {}
-
-    # g = powerlaw_cluster_graph(9, 2, 0)
-    # print(g.name)
-    # #
-    # for e in g.edges_iter(data=True):
-    #     if e[2]['t'] not in add_edge_events:
-    #         add_edge_events[e[2]['t']] = [(e[0], e[1])]
-    #     else:
-    #         add_edge_events[e[2]['t']].append((e[0], e[1]))
-    #
-    # print(str(add_edge_events), file=open('./dumps/pl9.txt', 'a'))
-    # return
-
-    ### Read pickled add and del_edge events ##########
+def main(add_edge_events = {}, del_edge_events = {}):
     start = time()
-    # filename = './test/pickles/enron/5'
-    # filename = './test/pickles/enron/10'
-    # filename = './test/pickles/enron/full'
-
-    # filename = './test/pickles/dutch/23'
-    #filename = './test/pickles/dutch/3'
-    # filename = './test/pickles/dutch/full'
-    # filename = './test/pickles/classrooms/'
-    # filename = './test/pickles/hp/'
-    # filename = './test/pickles/samson/'
-
-    # add_edge_filename = filename + 'add.pkl'
-    # with open(add_edge_filename, 'rb') as f:
-    #    add_edge_events = pickle.load(f)
-    # # #
-    # del_edge_filename = filename + 'del.pkl'
-    # with open(del_edge_filename, 'rb') as f:
-    #    del_edge_events = pickle.load(f)
-    #############
-    print('Loading done!', file=sys.stderr)
+    print(add_edge_events)
 
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
@@ -529,18 +476,15 @@ def main(add_edge_events={}):
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
     
     name = None
-    # name = exteRnal(add_edge_events)
-    # exit(1)
 
     shrg_rules = {}
     i=0
-    for t in events[: -1]: # go up to the second last timestamp
+    for t in events[:-1]:
         decomp_time = time()
 
         if t in add_edge_events:
             for u, v in add_edge_events[t]:
                 g_next.add_edge(u, v, label='e')
-                # # printu, v, t
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
                 if (u,v) in g_next.edges():
@@ -615,7 +559,6 @@ def main(add_edge_events={}):
             rule_tuple[0].weight /= float(s)
             prev_rules.append(rule_tuple[0])
 
-    #(prev_rules, next_rules) = normalize_shrg(prev_rules, next_rules)
     assert len(prev_rules) == len(next_rules)
 
     print('Parse start, time elapsed: {} sec'.format(time() - start))
@@ -624,76 +567,15 @@ def main(add_edge_events={}):
 
     forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
     print('Parse end, time elapsed: {} sec'.format(time() - start))
-    # print'start deriving'
 
     try:
         new_g = p.derive(p.viterbi(forest), next_rules)
     except KeyError:
         print('Goal error!', file=sys.stderr)
-        # print('End in', time() - start, 'sec!!')
-        return 'g', None, shrg_rules, time() - start
+        return 'fail', None, shrg_rules, time() - start
 
-    print('new Graph:')
-    import hypergraphs
     h_shrg = nx.DiGraph()
     for e in hypergraphs.edges(new_g):
         h_shrg.add_edge(e.h[0], e.h[1])
 
-    return 'o', h_shrg, shrg_rules, time() - start # Okay
-
-    # h_true = nx.DiGraph()
-    # for t in events:
-    #     if t in add_edge_events:
-    #         for u, v in add_edge_events[t]:
-    #             h_true.add_edge(u, v)
-    #     if t in del_edge_events:
-    #         for u, v in del_edge_events[t]:
-    #             h_true.remove_edge(u, v)
-    #
-    # if name is not None:
-    #     h_ster = nx.read_edgelist('{}_stergm.txt', create_using=nx.DiGraph(), nodetype=int)
-    #     cmp(h_true=h_true, h_shrg=h_shrg, h_ster=h_ster)
-    # else:
-    #     cmp(h_true=h_true, h_shrg=h_shrg)
-
-if __name__ == "__main__":
-    import ast
-    np.seterr(all='ignore')
-
-
-    goal_count = 0
-    ok_count = 0
-
-    add_edges_list = []
-    add_edges_filename = './dumps/pl9.txt'
-
-    with open(add_edges_filename) as f:
-        for line in f:
-            add_edges = ast.literal_eval(line.strip())
-            add_edges_list.append(add_edges)
-
-    for count, add_edges in enumerate(add_edges_list):
-        print('\n\n', count, file=sys.stderr)
-        status, graph, shrg_rules, time_ = main(add_edges)
-        pickle_path = ''
-        ae_path = ''
-
-        if status == 'g': # goal error
-            goal_count += 1
-            ae_path = './dumps/new/fail/pl9/fail_add_edges.txt'
-            pickle_path = './dumps/new/fail/pl9/shrg_{}.pkl'.format(goal_count)
-
-        elif status == 'o': # OK
-            ok_count += 1
-            pickle_path = './dumps/new/ok/pl9/shrg_{}.pkl'.format(ok_count)
-            ae_path = './dumps/new/ok/pl9/ok_add_edges.txt'
-            nx.write_edgelist(graph, './dumps/new/ok/pl9/shrg_{}_edges'.format(ok_count), data=False)
-
-        with open(pickle_path, 'wb') as f:
-            pickle.dump(shrg_rules, f)
-
-        print(str(add_edges), file=open(ae_path, 'a'))
-
-        with open('./dumps/new/overall_stats_9.txt', 'a') as f:
-            f.write('{} {} {} secs\n'.format(count+1, status, time_))
-
+    return 'pass', h_shrg, shrg_rules, time() - start
