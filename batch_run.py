@@ -9,6 +9,7 @@ import pickle
 import multiprocessing
 import os, sys
 import networkx as nx
+import numpy as np
 
 import PSHRG
 
