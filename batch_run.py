@@ -8,6 +8,7 @@ import pickle
 
 import multiprocessing
 import os, sys
+
 import networkx as nx
 import numpy as np
 
@@ -15,7 +16,7 @@ import PSHRG
 
 
 CORES = 2
-TRIALS = range(1)
+TRIALS = range(2)
 TIMEOUT = 1800
 
 
@@ -61,7 +62,8 @@ def one_trial(filename, trial):
         usage(1)
 
     try:
-        name, ext = filename.split('.')
+        ext = filename.split('.')[-1]
+        name = filename.split('/')[-2]
     except ValueError:
         name = filename
         ext = ''
@@ -80,7 +82,7 @@ def one_trial(filename, trial):
 
     with open(filename) as graph_file:
         if ext == 'pkl':
-            add_edges_list = pickle.load(graph_file)
+            add_edges = pickle.load(graph_file)
         else:
             try:
                 add_edges_list = [ast.literal_eval(l.strip()) for l in graph_file]
@@ -88,50 +90,49 @@ def one_trial(filename, trial):
                 print('Could not parse {}, exiting...'.format(filename))
                 usage(1)
 
-    stats_file = open(final_stats, 'w')
-    stats_file.write(','.join(['count', 'status', 'elapsed time\n']))
+    stats_file = open(final_stats, 'w+')
+    stats_file.write(','.join(['status', 'elapsed time\n']))
 
-    for count, add_edges in enumerate(add_edges_list):
-        status, graph, shrg_rules, runtime = PSHRG.main(add_edges)
+    status, graph, shrg_rules, runtime = PSHRG.main(add_edges)
 
-        if status == 'fail':
-            goal_count += 1
-            num = goal_count
-            path = fail_path
+    if status == 'fail':
+        goal_count += 1
+        num = goal_count
+        path = fail_path
 
-        elif status == 'pass':
-            ok_count += 1
-            num = ok_count
-            path = pass_path
-            edges_file = '{}/shrg_{}_edges'.format(path, ok_count)
-            nx.write_edgelist(graph, edges_file, data=False)
+    elif status == 'pass':
+        ok_count += 1
+        num = ok_count
+        path = pass_path
+        edges_file = '{}/shrg_edges'.format(path)
+        nx.write_edgelist(graph, edges_file, data=False)
 
-        pickle_path = '{}/shrg_{}.pkl'.format(path,num)
-        ae_path     = '{}/add_edges.txt'.format(path)
+    pickle_path = '{}/shrg.pkl'.format(path,num)
+    ae_path     = '{}/add_edges.txt'.format(path)
 
-        with open(pickle_path, 'wb') as f:
-            pickle.dump(shrg_rules, f)
+    with open(pickle_path, 'wb') as f:
+        pickle.dump(shrg_rules, f)
 
-        print(str(add_edges), file=open(ae_path, 'a'))
+    print(str(add_edges), file=open(ae_path, 'a'))
 
-        stats_file.write('{},{},{:.5}\n'.format(count+1, status, runtime)) 
+    stats_file.write('{},{:.5}\n'.format(status, runtime)) 
 
-        if status == 'fail':
-            continue
+    if status == 'fail':
+        return
 
-        # TODO: verify stergm
-        stergm_graph = PSHRG.exteRnal(add_edges)
-        true_graph = build_graph(add_edges)
+    stergm_graph = PSHRG.exteRnal(add_edges)
+    true_graph = build_graph(add_edges)
 
-        n = graph.number_of_nodes()
-        p = graph.number_of_edges() / n*(n-1)
-        er_graph = nx.erdos_renyi_graph(n, p, directed=True)
-        er_graph.name = 'erdos-renyi'
-        graph.name = 'pshrg'
+    n = graph.number_of_nodes()
+    p = graph.number_of_edges() / n*(n-1)
+    er_graph = nx.erdos_renyi_graph(n, p, directed=True)
+    er_graph.name = 'erdos-renyi'
+    graph.name = 'pshrg'
 
 
-        for g0, g1 in combinations([graph, true_graph, er_graph], 2):
-            PSHRG.cmp(g0, g1, '{}/{}_{}'.format(results_path, g0.name, g1.name))
+    for g0, g1 in combinations([graph, true_graph, er_graph], 2):
+        print("Names are {} {}".format(g0.name, g1.name))
+        PSHRG.cmp(g0, g1, '{}/{}_{}'.format(results_path, g0.name, g1.name))
     stats_file.close()
 
 
