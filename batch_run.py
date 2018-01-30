@@ -14,7 +14,6 @@ import numpy as np
 
 import PSHRG
 
-
 CORES = 2
 TRIALS = range(2)
 TIMEOUT = 1800
@@ -25,8 +24,8 @@ def usage(status):
 Runs PSHRG on each temporal graph (file) and logs results
   --help             prints help message')
   --cores num        uses NUM subprocesses (default: 2)
-  --trials num       uses NUM subprocesses (default: 1)
-  --timeout num      uses NUM subprocesses (default: 30)
+  --trials num       number of trials (default: 1)
+  --timeout num      timeout for the process (default: 30 minutes)
 
 Note: pkl files should be specified with .pkl extension
 Otherwise: files are assumed to be parseable by "ast" module
@@ -35,8 +34,8 @@ Otherwise: files are assumed to be parseable by "ast" module
 
 
 def build_graph(add_edge_events, del_edge_events={}):
-    for thing in (add_edge_events):
-        print(thing)
+    # for thing in (add_edge_events):
+    #    print(thing)
     g = nx.DiGraph()
     g.name = 'true-graph'
     for time, event in add_edge_events.items():
@@ -50,11 +49,26 @@ def build_graph(add_edge_events, del_edge_events={}):
 
 
 def run(filename):
-    for num in TRIALS:
-        predict_graph = one_trial(filename, num)
+    try:
+        ext = filename.split('.')[-1]
+        name = filename.split('/')[-2]
+    except ValueError:
+        name = filename
+        ext = ''
+    add_edges = []
+
+    if ext == 'pkl':
+        add_edges.append(pickle.load(open(filename, 'rb')))
+    else: # it is a text file with each line being a dictionary 
+        with open(filename) as f:
+            add_edges = [ast.literal_eval(l.strip()) for l in f]
+
+    for add_edge in add_edges:
+        for num in TRIALS:
+            predict_graph = one_trial(filename, num, add_edge)
 
 
-def one_trial(filename, trial):
+def one_trial(filename, trial, add_edges):
     try:
         os.stat(filename)
     except:
@@ -80,15 +94,16 @@ def one_trial(filename, trial):
     goal_count = 0
     ok_count = 0
 
-    with open(filename) as graph_file:
-        if ext == 'pkl':
-            add_edges = pickle.load(graph_file)
-        else:
-            try:
-                add_edges_list = [ast.literal_eval(l.strip()) for l in graph_file]
-            except ValueError:
-                print('Could not parse {}, exiting...'.format(filename))
-                usage(1)
+
+    # with open(filename) as graph_file:
+        # if ext == 'pkl':
+        #    add_edges = pickle.load(graph_file)
+    #    else:
+    #        try:
+    #            add_edges_list = [ast.literal_eval(l.strip()) for l in graph_file]
+    #        except ValueError:
+    #            print('Could not parse {}, exiting...'.format(filename))
+    #            usage(1)
 
     stats_file = open(final_stats, 'w+')
     stats_file.write(','.join(['status', 'elapsed time\n']))
@@ -146,7 +161,7 @@ if __name__ == '__main__':
                 usage(0)
             if arg == '--cores':
                 CORES = int(args.pop(0))
-            if arg == '--trials':
+	    if arg == '--trials':
                 TRIALS = range(int(args.pop(0)))
             if arg == '--timeout':
                 TIMEOUT = int(args.pop(0)) * 60
