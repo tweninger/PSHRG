@@ -108,7 +108,7 @@ def one_trial(filename, trial, add_edges):
         edges_file = '{}/shrg_edges'.format(results_path)
         nx.write_edgelist(graph, edges_file, data=False)
 
-        pickle_path = '{}/shrg.pkl'.format(results_path, num)
+        pickle_path = '{}/shrg_{:02}.pkl'.format(results_path, num)
         with open(pickle_path, 'wb') as f:
             pickle.dump(shrg_rules, f)
 
@@ -131,7 +131,7 @@ def one_trial(filename, trial, add_edges):
     graph.name = 'pshrg'
 
 
-    for g0, g1 in combinations([graph, true_graph, er_graph], 2):
+    for g0, g1 in combinations([graph, true_graph, er_graph, stergm_graph], 2):
         PSHRG.cmp(g0, g1, '{}/{}_{}'.format(results_path, g0.name, g1.name))
     stats_file.close()
 
