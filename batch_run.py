@@ -125,7 +125,7 @@ def one_trial(filename, trial, add_edges):
     true_graph = build_graph(add_edges)
 
     n = graph.number_of_nodes()
-    p = graph.number_of_edges() / n*(n-1)
+    p = graph.number_of_edges() / (n*(n-1))
     er_graph = nx.erdos_renyi_graph(n, p, directed=True)
     er_graph.name = 'erdos-renyi'
     graph.name = 'pshrg'
