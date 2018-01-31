@@ -411,7 +411,7 @@ def cmp(g0, g1, filename=""):
 
     with open(filename + "_together.txt", "w") as cmp_file:
         cmp_file.write("gcd,cdf-in,cdf-out,pagerank")
-        cmp_file.write("{},{},{},{}".format(GCD(g0, g1),
+        cmp_file.write("{},{},{},{}\n".format(GCD(g0, g1),
                                             cdf_sum(g0_in, g1_in),
                                             cdf_sum(g0_out, g1_out),
                                             cdf_sum(g0_page, g1_page)))
