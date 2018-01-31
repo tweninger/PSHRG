@@ -83,54 +83,40 @@ def one_trial(filename, trial, add_edges):
         ext = ''
 
     results_path = 'results/{}/trial{:02}'.format(name, trial)
-    fail_path    = '{}/fail'.format(results_path)
-    pass_path    = '{}/pass'.format(results_path)
-    final_stats  = '{}/overall_stats.txt'.format(results_path)
+    final_stats  = 'results/{}/overall_stats.txt'.format(name)
 
-    for path in [results_path, fail_path, pass_path]:
-        if not os.path.isdir(path):
-            os.makedirs(path)
+    if not os.path.isdir(results_path):
+        os.makedirs(results_path)
 
     goal_count = 0
     ok_count = 0
 
+    stats_file = open(final_stats, 'a')
 
-    # with open(filename) as graph_file:
-        # if ext == 'pkl':
-        #    add_edges = pickle.load(graph_file)
-    #    else:
-    #        try:
-    #            add_edges_list = [ast.literal_eval(l.strip()) for l in graph_file]
-    #        except ValueError:
-    #            print('Could not parse {}, exiting...'.format(filename))
-    #            usage(1)
-
-    stats_file = open(final_stats, 'w+')
-    stats_file.write(','.join(['status', 'elapsed time\n']))
+    if os.path.getsize(final_stats) == 0: # write headers only on file creation
+        stats_file.write(','.join(['trial', 'status', 'elapsed time\n']))
 
     status, graph, shrg_rules, runtime = PSHRG.main(add_edges)
 
     if status == 'fail':
         goal_count += 1
         num = goal_count
-        path = fail_path
 
     elif status == 'pass':
         ok_count += 1
         num = ok_count
-        path = pass_path
-        edges_file = '{}/shrg_edges'.format(path)
+        edges_file = '{}/shrg_edges'.format(results_path)
         nx.write_edgelist(graph, edges_file, data=False)
 
-    pickle_path = '{}/shrg.pkl'.format(path,num)
-    ae_path     = '{}/add_edges.txt'.format(path)
+        pickle_path = '{}/shrg.pkl'.format(results_path, num)
+        with open(pickle_path, 'wb') as f:
+            pickle.dump(shrg_rules, f)
 
-    with open(pickle_path, 'wb') as f:
-        pickle.dump(shrg_rules, f)
+        ae_path = '{}/add_edges.txt'.format(results_path)
 
-    print(str(add_edges), file=open(ae_path, 'a'))
+        print(str(add_edges), file=open(ae_path, 'a'))
 
-    stats_file.write('{},{:.5}\n'.format(status, runtime)) 
+    stats_file.write('{:02}, {},{:.5}\n'.format(trial, status, runtime)) 
 
     if status == 'fail':
         return
@@ -146,7 +132,6 @@ def one_trial(filename, trial, add_edges):
 
 
     for g0, g1 in combinations([graph, true_graph, er_graph], 2):
-        print("Names are {} {}".format(g0.name, g1.name))
         PSHRG.cmp(g0, g1, '{}/{}_{}'.format(results_path, g0.name, g1.name))
     stats_file.close()
 

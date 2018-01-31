@@ -31,6 +31,8 @@ import cProfile
 
 DEBUG = True
 
+logfile = 'log.txt'
+
 
 def graph_checks(G):
     ## Target number of nodes
@@ -461,14 +463,14 @@ def exteRnal(add_edge_events):
     # In case of error, execute 'sudo conda install -c r r-irkernel zeromq' and rerun this code
 
     if exit_code != 0:
-        print('Error running STERGM')
+        print('Error running STERGM', file=open(logfile, 'a'))
         return None
     return name
 
 
 def main(add_edge_events = {}, del_edge_events = {}):
     start = time()
-    print(add_edge_events)
+    print(add_edge_events, file=open(logfile, 'a'))
 
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
@@ -507,7 +509,7 @@ def main(add_edge_events = {}, del_edge_events = {}):
 
         td.new_visit(tree_decomp, g_prev, g_next, shrg_rules, i)
         g_prev = g_next.copy()
-        print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=sys.stderr)
+        print('tree decomp #{} done in {} sec'.format(t, time() - decomp_time), file=open(logfile, 'a'))
 
     prev_rules = []
     next_rules = []
@@ -525,7 +527,7 @@ def main(add_edge_events = {}, del_edge_events = {}):
                     if 'external' not in n[1] and not isinstance(n[1]['label'], grammar.Nonterminal):
                         anchor_candidates.append( (n[1]['oid'], rule_tuple) )
 
-    print('Number of Anchors', len(anchor_candidates))
+    print('Number of Anchors', len(anchor_candidates), file=open(logfile, 'a'))
     anchors = random.sample(anchor_candidates, len(anchor_candidates))
     for anchor in anchors:
         oid, rule = anchor
@@ -536,7 +538,7 @@ def main(add_edge_events = {}, del_edge_events = {}):
         for n in next.rhs.nodes(data=True):
             if 'oid' in n[1] and n[1]['oid'] == oid:
                 n[1]['label'] = oid
-                print('label changed to oid', rule[1].id, rule[1].time, n)
+                print('label changed to oid', rule[1].id, rule[1].time, n, file=open(logfile, 'a'))
 
         for n in g_next.nodes(data=True):
             if n[0] == oid:
@@ -561,17 +563,17 @@ def main(add_edge_events = {}, del_edge_events = {}):
 
     assert len(prev_rules) == len(next_rules)
 
-    print('Parse start, time elapsed: {} sec'.format(time() - start))
+    print('Parse start, time elapsed: {} sec'.format(time() - start), file=open(logfile, 'a'))
 
-    print('Number of Rules ', len(prev_rules))
+    print('Number of Rules ', len(prev_rules), file=open(logfile, 'a'))
 
     forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
-    print('Parse end, time elapsed: {} sec'.format(time() - start))
+    print('Parse end, time elapsed: {} sec'.format(time() - start), file=open(logfile, 'a'))
 
     try:
         new_g = p.derive(p.viterbi(forest), next_rules)
     except KeyError:
-        print('Goal error!', file=sys.stderr)
+        print('Goal error!', file=open(logfile, 'a'))
         return 'fail', None, shrg_rules, time() - start
 
     h_shrg = nx.DiGraph()
