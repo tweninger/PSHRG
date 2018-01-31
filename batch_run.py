@@ -125,7 +125,7 @@ def one_trial(filename, trial, add_edges):
     true_graph = build_graph(add_edges)
 
     n = graph.number_of_nodes()
-    p = graph.number_of_edges() / (n*(n-1))
+    p = float(graph.number_of_edges()) / (n*(n-1))
     er_graph = nx.erdos_renyi_graph(n, p, directed=True)
     er_graph.name = 'erdos-renyi'
     graph.name = 'pshrg'
@@ -158,16 +158,13 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool(CORES)
     result = pool.imap(run, args)
 
-    for arg in args:
-        run(arg)
-
-    '''
     while True:
-        result.next(TIMEOUT)
+        result.next()
         try:
-            result.next(TIMEOUT)
+            result.next()
         except multiprocessing.TimeoutError:
             print("Process took too long, aborting...")
         except StopIteration:
             break
-    '''
+        finally:
+            pass
