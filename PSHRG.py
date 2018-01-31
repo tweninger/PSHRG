@@ -465,7 +465,8 @@ def exteRnal(add_edge_events):
     if exit_code != 0:
         print('Error running STERGM', file=open(logfile, 'a'))
         return None
-    return name
+    g_stergm = nx.read_edgelist('{}_stergm.txt'.format(name), create_using=nx.DiGraph())
+    return g_stergm
 
 
 def main(add_edge_events = {}, del_edge_events = {}):
