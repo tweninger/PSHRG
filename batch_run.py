@@ -159,9 +159,9 @@ if __name__ == '__main__':
     result = pool.imap(run, args)
 
     while True:
-        result.next()
+        result.next(TIMEOUT)
         try:
-            result.next()
+            result.next(TIMEOUT)
         except multiprocessing.TimeoutError:
             print("Process took too long, aborting...")
         except StopIteration:
