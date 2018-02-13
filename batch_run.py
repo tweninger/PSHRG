@@ -14,8 +14,8 @@ import numpy as np
 
 import PSHRG
 
-CORES = 2
-TRIALS = range(2)
+CORES = 8
+TRIALS = range(1)
 TIMEOUT = 1800
 
 
@@ -67,8 +67,10 @@ def run(filename):
         for num in TRIALS:
             predict_graph = one_trial(filename, num, add_edge)
 
-
+ok_count = 0
+goal_count = 0
 def one_trial(filename, trial, add_edges):
+    global ok_count, goal_count
     try:
         os.stat(filename)
     except:
@@ -77,19 +79,17 @@ def one_trial(filename, trial, add_edges):
 
     try:
         ext = filename.split('.')[-1]
-        name = filename.split('/')[-2]
+        name = filename.split('/')[-1]
     except ValueError:
         name = filename
         ext = ''
 
-    results_path = 'results/{}/trial{:02}'.format(name, trial)
-    final_stats  = 'results/{}/overall_stats.txt'.format(name)
+    results_path = 'results_new/{}'.format(name)
+    final_stats  = 'results_new/{}/overall_stats.txt'.format(name)
 
     if not os.path.isdir(results_path):
         os.makedirs(results_path)
 
-    goal_count = 0
-    ok_count = 0
 
     stats_file = open(final_stats, 'a')
 
@@ -101,11 +101,12 @@ def one_trial(filename, trial, add_edges):
     if status == 'fail':
         goal_count += 1
         num = goal_count
+        return 
 
     elif status == 'pass':
         ok_count += 1
         num = ok_count
-        edges_file = '{}/shrg_edges'.format(results_path)
+        edges_file = '{}/shrg_edges_{}'.format(results_path, ok_count)
         nx.write_edgelist(graph, edges_file, data=False)
 
         pickle_path = '{}/shrg_{:02}.pkl'.format(results_path, num)
@@ -116,9 +117,9 @@ def one_trial(filename, trial, add_edges):
 
         print(str(add_edges), file=open(ae_path, 'a'))
 
-    stats_file.write('{:02}, {},{:.5}\n'.format(trial, status, runtime)) 
+    stats_file.write('{}, {}, {:.5}\n'.format(goal_count + ok_count, status, runtime)) 
 
-    if status == 'fail':
+    if status == 'fail' or graph is None:
         return
 
     stergm_graph = PSHRG.exteRnal(add_edges)
@@ -157,13 +158,14 @@ if __name__ == '__main__':
     
     pool = multiprocessing.Pool(CORES)
     result = pool.imap(run, args)
-
+    count = 0
     while True:
-        result.next(TIMEOUT)
+        count += 1
         try:
             result.next(TIMEOUT)
         except multiprocessing.TimeoutError:
             print("Process took too long, aborting...")
+            print('{}\n'.format(count), file=open('timeouts.txt', 'a'))
         except StopIteration:
             break
         finally:
