@@ -115,6 +115,9 @@ def run(filename):
             print(str(add_edge), file=open(ae_path, 'a'))
 
             g_stergm = PSHRG.exteRnal(add_edge, results_path, i)
+            if g_stergm is None:
+                print('error in STERGM')
+                g_stergm = nx.empty_graph(1, create_using=nx.DiGraph())
             g_true = build_graph(add_edge)
             g_true.name = name
 
