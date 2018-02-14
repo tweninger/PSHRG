@@ -17,7 +17,7 @@ import PSHRG
 
 CORES = 2
 TRIALS = range(2)
-TIMEOUT = 5 * 60
+TIMEOUT = 10 * 60
 
 
 def usage(status):
@@ -76,7 +76,7 @@ def run(filename):
     ae_path = '{}/add_edges.txt'.format(results_path)
     print('', file=open(ae_path, 'w'))
 
-    for i, add_edge in enumerate(add_edges[: 20]):
+    for i, add_edge in enumerate(add_edges):
         i += 1
         print('i = ', i)
         manager = multiprocessing.Manager()

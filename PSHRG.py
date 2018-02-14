@@ -456,9 +456,13 @@ def exteRnal(add_edge_events, result_path, i):
     r_comms.append("\n{}.sim <- simulate.stergm({}.fit, nsim=1, nw.start={})".format(name, name, max_t))
     r_comms.append("mat <- as.matrix({}.sim, matrix.type='edgelist')".format(name))
     r_comms.append("write.table(mat, file='{}', sep=' ', quote=F, col.names=F, row.names=F)".format(edgelist_path))
-    print('\n'.join(r_comms), file=open('{}_script.r'.format(name), 'w'))
+    
+    if not os.path.isdir('./stergm_scripts'):
+        os.makedirs('./stergm_scripts')
 
-    exit_code = subprocess.call("cat {}_script.r | R --no-save".format(name), shell=True)
+    print('\n'.join(r_comms), file=open('./stergm_scripts/{}_script.r'.format(name), 'w'))
+
+    exit_code = subprocess.call("cat ./stergm_scripts/{}_script.r | R --no-save".format(name), shell=True)
 
     # In case of error, execute 'sudo conda install -c r r-irkernel zeromq' and rerun this code
 

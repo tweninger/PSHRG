@@ -13,7 +13,7 @@ import bintrees
 
 verbose = 1
 
-LIM = 10000
+LIM = 20000
 
 class UnificationFailure(Exception):
     pass
