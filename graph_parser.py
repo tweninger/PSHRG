@@ -474,7 +474,7 @@ def viterbi(chart):
         e = ant[item]
         if hypergraphs.edge(chart, e)['label'] == "Complete":
             _, aitem, pitem = e
-            print(ritem, aitem, pitem)
+            # print(ritem, aitem, pitem)
             if pitem in clo:
                 return
             link = hypergraphs.edge(aitem.rule.rhs, aitem.nextedge)['link']

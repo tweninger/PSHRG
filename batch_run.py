@@ -1,7 +1,8 @@
 #!/usr/bin/python2.7
 
-from __future__ import print_function
+from __future__ import print_function, division
 from itertools import combinations
+import csv
 
 import ast
 import pickle
@@ -14,9 +15,9 @@ import numpy as np
 
 import PSHRG
 
-CORES = 8
-TRIALS = range(1)
-TIMEOUT = 1800
+CORES = 2
+TRIALS = range(2)
+TIMEOUT = 5 * 60
 
 
 def usage(status):
@@ -43,39 +44,12 @@ def build_graph(add_edge_events, del_edge_events={}):
             g.add_edge(u, v, label='e')
     for time, event in del_edge_events.items():
         for u, v in event:
-            if (u, v) in g_next.edges():
+            if (u, v) in g.edges():
                 g.remove_edge(u, v)
     return g
 
 
 def run(filename):
-    try:
-        ext = filename.split('.')[-1]
-        name = filename.split('/')[-2]
-    except ValueError:
-        name = filename
-        ext = ''
-    add_edges = []
-
-    if ext == 'pkl':
-        add_edges.append(pickle.load(open(filename, 'rb')))
-    else: # it is a text file with each line being a dictionary 
-        with open(filename) as f:
-            add_edges = [ast.literal_eval(l.strip()) for l in f]
-
-    for add_edge in add_edges:
-        for num in TRIALS:
-            predict_graph = one_trial(filename, num, add_edge)
-
-ok_count = 0
-goal_count = 0
-def one_trial(filename, trial, add_edges):
-    global ok_count, goal_count
-    try:
-        os.stat(filename)
-    except:
-        print('{} does not exist or has wrong permissions!'.format(filename))
-        usage(1)
 
     try:
         ext = filename.split('.')[-1]
@@ -84,89 +58,120 @@ def one_trial(filename, trial, add_edges):
         name = filename
         ext = ''
 
-    results_path = 'results_new/{}'.format(name)
-    final_stats  = 'results_new/{}/overall_stats.txt'.format(name)
+    with open(filename) as f:
+        add_edges = [ast.literal_eval(l.strip()) for l in f]
+
+    results_path = './final_dump/{}'.format(name)
 
     if not os.path.isdir(results_path):
         os.makedirs(results_path)
 
 
-    stats_file = open(final_stats, 'a')
+    goal_count = 0
+    ok_count = 0
+    time_count = 0
+    overall_stats = results_path + '/overall_stats'
+    print('#,status,time', file=open(overall_stats, 'w'))
 
-    if os.path.getsize(final_stats) == 0: # write headers only on file creation
-        stats_file.write(','.join(['trial', 'status', 'elapsed time\n']))
+    ae_path = '{}/add_edges.txt'.format(results_path)
+    print('', file=open(ae_path, 'w'))
 
-    status, graph, shrg_rules, runtime = PSHRG.main(add_edges)
+    for i, add_edge in enumerate(add_edges[: 20]):
+        i += 1
+        print('i = ', i)
+        manager = multiprocessing.Manager()
+        return_dict = manager.dict()
+        p = multiprocessing.Process(target=PSHRG.main, args=(add_edge, return_dict))
+        p.start()
+        p.join(TIMEOUT)
 
-    if status == 'fail':
-        goal_count += 1
-        num = goal_count
-        return 
+        if p.is_alive():
+            time_count += 1
+            print('Timeout!!')
+            p.terminate()
+            p.join()
+            print('{},timeout,{}'.format(i, TIMEOUT), file=open(overall_stats, 'a'))
+            continue
 
-    elif status == 'pass':
-        ok_count += 1
-        num = ok_count
-        edges_file = '{}/shrg_edges_{}'.format(results_path, ok_count)
-        nx.write_edgelist(graph, edges_file, data=False)
+        status, g_pshrg, shrg_rules, runtime = return_dict['status'], return_dict['graph'], return_dict['shrg_rules'], return_dict['time']
 
-        pickle_path = '{}/shrg_{:02}.pkl'.format(results_path, num)
-        with open(pickle_path, 'wb') as f:
-            pickle.dump(shrg_rules, f)
+        if status == 'fail':
+            goal_count += 1
+            print('fail!')
+            print('{},fail,{}'.format(i, runtime), file=open(overall_stats, 'a'))
+            continue
 
-        ae_path = '{}/add_edges.txt'.format(results_path)
+        elif status == 'pass':
+            g_pshrg.name = 'pshrg'
+            ok_count += 1
+            print('{},pass,{}'.format(i, runtime), file=open(overall_stats, 'a'))
+            edges_file = '{}/shrg_edges_{}'.format(results_path, i)
+            nx.write_edgelist(g_pshrg, edges_file, data=False)
 
-        print(str(add_edges), file=open(ae_path, 'a'))
+            pickle_path = '{}/shrg_{}.pkl'.format(results_path, i)
+            with open(pickle_path, 'wb') as f:
+                pickle.dump(shrg_rules, f)
 
-    stats_file.write('{}, {}, {:.5}\n'.format(goal_count + ok_count, status, runtime)) 
+            print(str(add_edge), file=open(ae_path, 'a'))
 
-    if status == 'fail' or graph is None:
-        return
+            g_stergm = PSHRG.exteRnal(add_edge, results_path, i)
+            g_true = build_graph(add_edge)
+            g_true.name = name
 
-    stergm_graph = PSHRG.exteRnal(add_edges)
-    true_graph = build_graph(add_edges)
+            n = g_true.number_of_nodes()
+            p = g_true.number_of_edges() / (n * (n - 1))
+            g_er = nx.erdos_renyi_graph(n, p, directed=True)
+            g_er.name = 'erdos-renyi'
 
-    n = graph.number_of_nodes()
-    p = float(graph.number_of_edges()) / (n*(n-1))
-    er_graph = nx.erdos_renyi_graph(n, p, directed=True)
-    er_graph.name = 'erdos-renyi'
-    graph.name = 'pshrg'
+            write_stats(g_true=g_true, g_pshrg=g_pshrg, g_stergm=g_stergm, g_er=g_er, count=ok_count)
 
 
-    for g0, g1 in combinations([graph, true_graph, er_graph, stergm_graph], 2):
-        PSHRG.cmp(g0, g1, '{}/{}_{}'.format(results_path, g0.name, g1.name))
-    stats_file.close()
 
+def write_stats(g_true, g_pshrg, g_stergm, g_er, count):
+    true_in = g_true.in_degree().values()
+    true_out = g_true.out_degree().values()
+    true_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g_true).values())
+
+    pshrg_in = g_pshrg.in_degree().values()
+    pshrg_out = g_pshrg.out_degree().values()
+    pshrg_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g_pshrg).values())
+
+    er_in = g_er.in_degree().values()
+    er_out = g_er.out_degree().values()
+    er_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g_er).values())
+
+    stergm_in = g_stergm.in_degree().values()
+    stergm_out = g_stergm.out_degree().values()
+    stergm_page = map(lambda x: round(x, 3), nx.pagerank_numpy(g_stergm).values())
+
+    gcd_pshrg = PSHRG.GCD(g_pshrg, g_true)
+    cdf_in_pshrg = PSHRG.cdf_sum(pshrg_in, true_in)
+    cdf_out_pshrg = PSHRG.cdf_sum(pshrg_out, true_out)
+    cdf_page_pshrg = PSHRG.cdf_sum(pshrg_page, true_page)
+
+    gcd_er = PSHRG.GCD(g_er, g_true)
+    cdf_in_er = PSHRG.cdf_sum(er_in, true_in)
+    cdf_out_er = PSHRG.cdf_sum(er_out, true_out)
+    cdf_page_er = PSHRG.cdf_sum(er_page, true_page)
+
+    gcd_stergm = PSHRG.GCD(g_stergm, g_true)
+    cdf_in_stergm = PSHRG.cdf_sum(stergm_in, true_in)
+    cdf_out_stergm = PSHRG.cdf_sum(stergm_out, true_out)
+    cdf_page_stergm = PSHRG.cdf_sum(stergm_page, true_page)
+
+    with open('./final_dump/stats.csv', 'a') as f:
+        csvwriter = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+        csvwriter.writerow([g_true.name, count, g_true.order(), g_true.size(), g_pshrg.order(), g_pshrg.size(),
+                            g_er.order(), g_er.size(), g_stergm.order(), g_stergm.size(),
+                            gcd_pshrg, cdf_in_pshrg, cdf_out_pshrg, cdf_page_pshrg,
+                            gcd_er, cdf_in_er, cdf_out_er, cdf_page_er,
+                            gcd_stergm, cdf_in_stergm, cdf_out_stergm, cdf_page_stergm])
 
 if __name__ == '__main__':
     np.seterr(all='ignore')
-    args = sys.argv[1:]
-    try:
-        while args[0][0] == '-':
-            arg = args.pop(0)
-            if arg == '--help':
-                usage(0)
-            if arg == '--cores':
-                CORES = int(args.pop(0))
-	    if arg == '--trials':
-                TRIALS = range(int(args.pop(0)))
-            if arg == '--timeout':
-                TIMEOUT = int(args.pop(0)) * 60
-    
-        assert len(args) > 0
-    except:
-        usage(1)
-    
-    pool = multiprocessing.Pool(CORES)
-    result = pool.imap(run, args)
-    count = 0
-    while True:
-        count += 1
-        try:
-            result.next(TIMEOUT)
-        except multiprocessing.TimeoutError:
-            print("Process took too long, aborting...")
-            print('{}\n'.format(count), file=open('timeouts.txt', 'a'))
-        except StopIteration:
-            break
-        finally:
-            pass
+
+    if len(sys.argv) < 2:
+        print('Enter list of add edges as command line args')
+    else:
+        run(sys.argv[1])
+

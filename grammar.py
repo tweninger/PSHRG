@@ -243,7 +243,7 @@ def derive(deriv, rules):
         dnode: current derivation node
         hedge: nonterminal edge that current rule replaces
         """
-        print dnode.rule.id
+        # print dnode.rule.id
         dchildren = {}
         for dchild in deriv.successors(dnode):
             dchildren[deriv[dnode][dchild]['link']] = dchild

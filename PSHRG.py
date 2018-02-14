@@ -1,7 +1,6 @@
 #!/usr/bin/python2.7
 from __future__ import print_function
 
-
 import ast
 import os
 import pickle
@@ -64,7 +63,7 @@ def matcher(lhs, N):
 def print_tree_decomp(tree, indent=""):
     (node, children) = tree
     # printindent, node
-    [print_tree_decomp(child, indent = indent + "  ") for child in children]
+    [print_tree_decomp(child, indent=indent + "  ") for child in children]
 
 
 def grow(rule_list, grammar, diam=0):
@@ -156,7 +155,7 @@ def tree_decomposition(g):
         _t = td.quickbb(g)
         root = list(_t)[0]
         _t = td.make_rooted(_t, root)
-        #_t = binarize(_t)
+        # _t = binarize(_t)
         tree_decomp_l.append(_t)
 
     return tree_decomp_l
@@ -240,10 +239,11 @@ def binarize(tree):
             binarized = (node, [binarized, child])
         return (full_node, binarized[1])
 
+
 def prune(tree, parent):
     (node, children) = tree
     children = [prune(child, node) for child in children]
-    #prune nones
+    # prune nones
     newchildren = []
     for child in children:
         if type(child) is list:
@@ -252,7 +252,7 @@ def prune(tree, parent):
                     newchildren.append(c)
         else:
             if child[0] is not None:
-                newchildren.append( child )
+                newchildren.append(child)
     children = newchildren
     if len(children) == 0 and len(node.difference(parent)) == 0:
         return (None, [])
@@ -261,56 +261,56 @@ def prune(tree, parent):
     else:
         return (node, children)
 
+
 def powerlaw_cluster_graph(n, m, p, seed=None):
     p = 0
     if m < 1 or n < m:
-        raise nx.NetworkXError(\
-              "NetworkXError must have m>1 and m<n, m=%d,n=%d"%(m,n))
+        raise nx.NetworkXError( \
+            "NetworkXError must have m>1 and m<n, m=%d,n=%d" % (m, n))
 
     if p > 1 or p < 0:
-        raise nx.NetworkXError(\
-              "NetworkXError p must be in [0,1], p=%f"%(p))
+        raise nx.NetworkXError( \
+            "NetworkXError p must be in [0,1], p=%f" % (p))
     if seed is not None:
         random.seed(seed)
 
-    G=rg.empty_graph(m, create_using=nx.DiGraph()) # add m initial nodes (m0 in barabasi-speak)
-    G.name="PL {} {} {}".format(n, m, p)
-    repeated_nodes=G.nodes()  # list of existing nodes to sample from
-                           # with nodes repeated once for each adjacent edge
-    source=m               # next node is m
+    G = rg.empty_graph(m, create_using=nx.DiGraph())  # add m initial nodes (m0 in barabasi-speak)
+    G.name = "PL {} {} {}".format(n, m, p)
+    repeated_nodes = G.nodes()  # list of existing nodes to sample from
+    # with nodes repeated once for each adjacent edge
+    source = m  # next node is m
     t = 0
-    while source<n:        # Now add the other n-1 nodes
-        possible_targets = rg._random_subset(repeated_nodes,m)
+    while source < n:  # Now add the other n-1 nodes
+        possible_targets = rg._random_subset(repeated_nodes, m)
         # do one preferential attachment for new node
-        target=possible_targets.pop()
-        G.add_edge(source,target, t=t)
-        repeated_nodes.append(target) # add one node to list for each new link
-        count=1
-        while count<m:  # add m-1 more new links
-            if random.random()<p: # clustering step: add triangle
-                neighborhood=[nbr for nbr in G.neighbors(target) \
-                               if not G.has_edge(source,nbr) \
-                               and not nbr==source]
-                if neighborhood: # if there is a neighbor without a link
-                    nbr=random.choice(neighborhood)
-                    G.add_edge(source,nbr, t=t) # add triangle
+        target = possible_targets.pop()
+        G.add_edge(source, target, t=t)
+        repeated_nodes.append(target)  # add one node to list for each new link
+        count = 1
+        while count < m:  # add m-1 more new links
+            if random.random() < p:  # clustering step: add triangle
+                neighborhood = [nbr for nbr in G.neighbors(target) \
+                                if not G.has_edge(source, nbr) \
+                                and not nbr == source]
+                if neighborhood:  # if there is a neighbor without a link
+                    nbr = random.choice(neighborhood)
+                    G.add_edge(source, nbr, t=t)  # add triangle
                     repeated_nodes.append(nbr)
-                    count=count+1
-                    continue # go to top of while loop
+                    count = count + 1
+                    continue  # go to top of while loop
             # else do preferential attachment step if above fails
-            target=possible_targets.pop()
-            G.add_edge(source,target,t=t)
+            target = possible_targets.pop()
+            G.add_edge(source, target, t=t)
             repeated_nodes.append(target)
             count = count + 1
         t += 1
 
-        repeated_nodes.extend([source]*m)  # add source node to list m times
+        repeated_nodes.extend([source] * m)  # add source node to list m times
         source += 1
     return G
 
 
-def external_rage(G,netname):
-
+def external_rage(G, netname):
     G = nx.Graph(G)
     # giant_nodes = max(nx.connected_component_subgraphs(G), key=len)
     giant_nodes = sorted(nx.connected_component_subgraphs(G), key=len, reverse=True)
@@ -319,7 +319,7 @@ def external_rage(G,netname):
     tmp_file = "tmp_{}.txt".format(netname)
     with open(tmp_file, 'w') as tmp:
         for e in G.edges_iter():
-            tmp.write(str(int(e[0])+1) + ' ' + str(int(e[1])+1) + '\n')
+            tmp.write(str(int(e[0]) + 1) + ' ' + str(int(e[1]) + 1) + '\n')
 
     if 'Windows' in platform.platform():
         args = ("./RAGE_windows.exe", tmp_file)
@@ -329,7 +329,7 @@ def external_rage(G,netname):
         args = ("./RAGE", tmp_file)
 
     popen = subprocess.Popen(args, stdout=subprocess.PIPE)
-    
+
     popen.wait()
     output = popen.stdout.read()
 
@@ -341,7 +341,6 @@ def external_rage(G,netname):
 
 
 def tijana_eval_compute_gcm(G_df):
-
     l = len(G_df.columns)
     gcm = np.zeros((l, l))
     i = 0
@@ -357,7 +356,6 @@ def tijana_eval_compute_gcm(G_df):
 
 
 def tijana_eval_compute_gcd(gcm_g, gcm_h):
-
     if len(gcm_h) != len(gcm_g):
         raise "Graphs must be same size"
     s = 0
@@ -377,10 +375,10 @@ def cdf_sum(data1, data2):
     n2 = len(data2)
     data1 = np.sort(data1)
     data2 = np.sort(data2)
-    data_all = np.concatenate([data1,data2])
-    cdf1 = np.searchsorted(data1,data_all,side='right')/(1.0*n1)
-    cdf2 = (np.searchsorted(data2,data_all,side='right'))/(1.0*n2)
-    d = np.sum(np.absolute(cdf1-cdf2))
+    data_all = np.concatenate([data1, data2])
+    cdf1 = np.searchsorted(data1, data_all, side='right') / (1.0 * n1)
+    cdf2 = (np.searchsorted(data2, data_all, side='right')) / (1.0 * n2)
+    d = np.sum(np.absolute(cdf1 - cdf2))
     return round(d, 3)
 
 
@@ -391,6 +389,7 @@ def GCD(h1, h2):
     gcm_h = tijana_eval_compute_gcm(df_h)
     gcd = tijana_eval_compute_gcd(gcm_g, gcm_h)
     return round(gcd, 3)
+
 
 def cmp(g0, g1, filename=""):
     g0_in = g0.in_degree().values()
@@ -412,27 +411,27 @@ def cmp(g0, g1, filename=""):
     with open(filename + "_together.txt", "w") as cmp_file:
         cmp_file.write("gcd,cdf-in,cdf-out,pagerank")
         cmp_file.write("{},{},{},{}\n".format(GCD(g0, g1),
-                                            cdf_sum(g0_in, g1_in),
-                                            cdf_sum(g0_out, g1_out),
-                                            cdf_sum(g0_page, g1_page)))
+                                              cdf_sum(g0_in, g1_in),
+                                              cdf_sum(g0_out, g1_out),
+                                              cdf_sum(g0_page, g1_page)))
 
 
-def exteRnal(add_edge_events):
+
+def exteRnal(add_edge_events, result_path, i):
     """
     Works only for add_edge_events
     """
+    name = 'stergm_{}'.format(i)
+    edgelist_path = '{}/{}.txt'.format(result_path, name)
 
     max_t = max(add_edge_events.keys())
-    name = 'pl{}'.format(max_t + 3)
-    r_comms = []
-    # r_comms.append("install.packages(c('statnet'), repos='http://cran.us.r-project.org', dependencies=T)")
-    r_comms.append("""if(!require(statnet)){
+    r_comms = ["""if(!require(statnet)){
     install.packages('statnet', repos='http://cran.us.r-project.org', dependencies=T)
-    library(statnet)}""")
+    library(statnet)}""",
+               '{} <- network.initialize(0)'.format(name),
+               'add.vertices.active({}, 2, onset=0, terminus={})'.format(name, max_t + 1)]
+    # r_comms.append("install.packages(c('statnet'), repos='http://cran.us.r-project.org', dependencies=T)")
     # r_comms.append("library(statnet)")
-    r_comms.append('{} <- network.initialize(0)'.format(name))
-
-    r_comms.append('add.vertices.active({}, 2, onset=0, terminus={})'.format(name, max_t + 1))
 
     max_t = max(add_edge_events.keys())
     for t in sorted(add_edge_events.keys()):
@@ -442,10 +441,10 @@ def exteRnal(add_edge_events):
                 'add.edges.active({}, tail={}, head={}, onset={}, terminus={})'.format(name, u + 1, v + 1, t,
                                                                                        max_t + 1))
 
-    r_comms.append('\n#plots\npar(mfrow=c(2, 2))')
-    r_comms.append("plot({}, main='whole graph', displaylabels=T)".format(name))
-    for t in sorted(add_edge_events.keys()):
-        r_comms.append("plot(network.extract({}, at={}), main='t={}', displaylabels=T)".format(name, t, t))
+    # r_comms.append('\n#plots\npar(mfrow=c(2, 2))')
+    # r_comms.append("plot({}, main='whole graph', displaylabels=T)".format(name))
+    # for t in sorted(add_edge_events.keys()):
+    #     r_comms.append("plot(network.extract({}, at={}), main='t={}', displaylabels=T)".format(name, t, t))
 
     r_comms.append("""\n{}.fit <- stergm({}, 
                        formation=~edges+gwesp(0,fixed=T),
@@ -456,7 +455,7 @@ def exteRnal(add_edge_events):
 
     r_comms.append("\n{}.sim <- simulate.stergm({}.fit, nsim=1, nw.start={})".format(name, name, max_t))
     r_comms.append("mat <- as.matrix({}.sim, matrix.type='edgelist')".format(name))
-    r_comms.append("write.table(mat, file='{}_stergm.txt', sep=' ', quote=F, col.names=F, row.names=F)".format(name))
+    r_comms.append("write.table(mat, file='{}', sep=' ', quote=F, col.names=F, row.names=F)".format(edgelist_path))
     print('\n'.join(r_comms), file=open('{}_script.r'.format(name), 'w'))
 
     exit_code = subprocess.call("cat {}_script.r | R --no-save".format(name), shell=True)
@@ -466,23 +465,24 @@ def exteRnal(add_edge_events):
     if exit_code != 0:
         print('Error running STERGM', file=open(logfile, 'a'))
         return None
-    g_stergm = nx.read_edgelist('{}_stergm.txt'.format(name), create_using=nx.DiGraph())
+    g_stergm = nx.read_edgelist(edgelist_path, create_using=nx.DiGraph())
     return g_stergm
 
 
-def main(add_edge_events = {}, del_edge_events = {}):
+def main(add_edge_events={}, return_dict={}):
     start = time()
+    del_edge_events = {}
     print(add_edge_events, file=open(logfile, 'a'))
 
     g_prev = nx.DiGraph()
     g_next = nx.DiGraph()
 
     events = sorted(list(set(add_edge_events.keys() + del_edge_events.keys())))
-    
+
     name = None
 
     shrg_rules = {}
-    i=0
+    i = 0
     for t in events[:-1]:
         decomp_time = time()
 
@@ -491,11 +491,11 @@ def main(add_edge_events = {}, del_edge_events = {}):
                 g_next.add_edge(u, v, label='e')
         if t in del_edge_events:
             for u, v in del_edge_events[t]:
-                if (u,v) in g_next.edges():
+                if (u, v) in g_next.edges():
                     g_next.remove_edge(u, v)
         nx.set_node_attributes(g_next, 'label', 'u')
 
-        #get WCC
+        # get WCC
         if not nx.is_weakly_connected(g_next):
             g_next = max(nx.weakly_connected_component_subgraphs(g_next), key=len)
 
@@ -527,7 +527,7 @@ def main(add_edge_events = {}, del_edge_events = {}):
             if not nonterm and rule_tuple[1].time == i and rule_tuple[1].iso == False:
                 for n in rule_tuple[0].rhs.nodes(data=True):
                     if 'external' not in n[1] and not isinstance(n[1]['label'], grammar.Nonterminal):
-                        anchor_candidates.append( (n[1]['oid'], rule_tuple) )
+                        anchor_candidates.append((n[1]['oid'], rule_tuple))
 
     print('Number of Anchors', len(anchor_candidates), file=open(logfile, 'a'))
     anchors = random.sample(anchor_candidates, len(anchor_candidates))
@@ -569,17 +569,26 @@ def main(add_edge_events = {}, del_edge_events = {}):
 
     print('Number of Rules ', len(prev_rules), file=open(logfile, 'a'))
 
-    forest = p.parse( prev_rules, [grammar.Nonterminal('0')], g_next )
+    forest = p.parse(prev_rules, [grammar.Nonterminal('0')], g_next)
     print('Parse end, time elapsed: {} sec'.format(time() - start), file=open(logfile, 'a'))
 
     try:
         new_g = p.derive(p.viterbi(forest), next_rules)
     except KeyError:
         print('Goal error!', file=open(logfile, 'a'))
+        return_dict['status'] = 'fail'
+        return_dict['graph'] = None
+        return_dict['shrg_rules'] = shrg_rules
+        return_dict['time'] = time() - start
         return 'fail', None, shrg_rules, time() - start
 
     h_shrg = nx.DiGraph()
     for e in hypergraphs.edges(new_g):
         h_shrg.add_edge(e.h[0], e.h[1])
 
+    return_dict['status'] = 'pass'
+    return_dict['graph'] = h_shrg
+    return_dict['shrg_rules'] = shrg_rules
+    return_dict['time'] = time() - start
     return 'pass', h_shrg, shrg_rules, time() - start
+
